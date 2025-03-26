@@ -49,3 +49,25 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+
+class AdminChangePasswordSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
+    def validate(self, data):
+        try:
+            user = User.objects.get(id=data['user_id'])
+            data['user'] = user
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"user_id": "کاربری با این شناسه یافت نشد."})
+        return data
+
+    def save(self, **kwargs):
+        user = self.validated_data['user']
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user

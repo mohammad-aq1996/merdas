@@ -4,12 +4,14 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
 from .models import User
-from .serializers import UserSerializer, LoginSerializer, ChangePasswordSerializer
+from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer, )
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 
 
 class RegisterView(APIView):
+    permission_classes = (IsAdminUser,)
+
     @extend_schema(request=UserSerializer, responses=UserSerializer)
     def post(self, request):
         serializer = UserSerializer(data=request.data)
@@ -42,4 +44,16 @@ class ChangePasswordView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "رمز عبور با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminChangePasswordView(APIView):
+    permission_classes = [IsAdminUser]  # فقط ادمین‌ها و سوپریوزرها دسترسی دارند
+
+    @extend_schema(request=AdminChangePasswordSerializer, responses=AdminChangePasswordSerializer)
+    def put(self, request):
+        serializer = AdminChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "رمز عبور کاربر با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
