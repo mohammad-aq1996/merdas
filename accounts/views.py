@@ -59,7 +59,7 @@ class AdminChangePasswordView(APIView):
 
     @extend_schema(request=AdminChangePasswordSerializer, responses=AdminChangePasswordSerializer)
     def put(self, request):
-        serializer = AdminChangePasswordSerializer(data=request.data)
+        serializer = AdminChangePasswordSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "رمز عبور کاربر با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
@@ -72,8 +72,7 @@ class GenerateCaptchaView(APIView):
         captcha_text = ''.join(random.choices((string.digits + string.ascii_lowercase) , k=7))
 
         captcha_key = get_anonymous_cache_key(request)
-        cache.set(f"captcha_{captcha_key}", captcha_text, timeout=300)
-        print(captcha_key)
+        cache.set(captcha_key, captcha_text, timeout=300)
         img = Image.new('RGB', (150, 40), color=(255, 255, 255))
         draw = ImageDraw.Draw(img)
 

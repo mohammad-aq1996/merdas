@@ -28,7 +28,7 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, data):
         request = self.context.get("request")
         captcha_key = get_anonymous_cache_key(request)
-        cached_captcha = cache.get(f"captcha_{captcha_key}")
+        cached_captcha = cache.get(captcha_key)
 
         if not cached_captcha:
             raise serializers.ValidationError({"captcha": "کپچا منقضی شده است، لطفاً دوباره دریافت کنید."})
@@ -47,11 +47,23 @@ class LoginSerializer(serializers.Serializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True)
+    captcha = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = self.context['request'].user
-        if not user.check_password(data['old_password']):
+        request = self.context.get("request")
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(captcha_key)
+
+        if not cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا منقضی شده است، لطفاً دوباره دریافت کنید."})
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا اشتباه است."})
+
+        if not request.user.check_password(data['old_password']):
             raise serializers.ValidationError({"old_password": "رمز عبور فعلی اشتباه است."})
+
+        cache.delete(captcha_key)
         return data
 
     def validate_new_password(self, value):
@@ -68,16 +80,26 @@ class ChangePasswordSerializer(serializers.Serializer):
 class AdminChangePasswordSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     new_password = serializers.CharField(write_only=True)
+    captcha = serializers.CharField(write_only=True)
 
     def validate_new_password(self, value):
         validate_password(value)
         return value
 
     def validate(self, data):
-        try:
-            user = User.objects.get(id=data['user_id'])
-            data['user'] = user
-        except User.DoesNotExist:
+        request = self.context.get("request")
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(captcha_key)
+
+        if not cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا منقضی شده است، لطفاً دوباره دریافت کنید."})
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا اشتباه است."})
+        cache.delete(captcha_key)
+        user = User.objects.filter(id=data['user_id']).first()
+        data['user'] = user
+        if not user:
             raise serializers.ValidationError({"user_id": "کاربری با این شناسه یافت نشد."})
         return data
 
