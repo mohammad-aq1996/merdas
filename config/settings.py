@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_jalali',
     'rest_framework_simplejwt',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
 
     'core.apps.CoreConfig',
     'accounts.apps.AccountsConfig'
@@ -145,6 +147,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -155,3 +159,15 @@ SIMPLE_JWT = {
 
 
 AUTH_USER_MODEL = 'accounts.User'
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Merdas API',
+    'DESCRIPTION': 'Merdas project description',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+
+    'SWAGGER_UI_DIST': 'SIDECAR',  # shorthand to use the sidecar instead
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
+}
