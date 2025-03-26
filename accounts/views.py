@@ -4,8 +4,9 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
 from .models import User
-from .serializers import UserSerializer, LoginSerializer
+from .serializers import UserSerializer, LoginSerializer, ChangePasswordSerializer
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import AllowAny
 
 
 class RegisterView(APIView):
@@ -19,6 +20,8 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    permission_classes = (AllowAny,)
+
     @extend_schema(request=LoginSerializer, responses=LoginSerializer)
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -29,4 +32,14 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
                 'refresh': str(refresh)
             })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    @extend_schema(request=ChangePasswordSerializer, responses=ChangePasswordSerializer)
+    def put(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "رمز عبور با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
