@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
+from core.utils import get_anonymous_cache_key
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -21,13 +23,26 @@ class UserSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    captcha = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        request = self.context.get("request")
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(f"captcha_{captcha_key}")
+
+        if not cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا منقضی شده است، لطفاً دوباره دریافت کنید."})
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError({"captcha": "کپچا اشتباه است."})
+
         user = authenticate(username=data['username'], password=data['password'])
         if not user:
-            raise serializers.ValidationError("Invalid credentials")
-        return {'user': user}
+            raise serializers.ValidationError({"error": "نام کاربری یا رمز عبور اشتباه است."})
 
+        cache.delete(captcha_key)
+
+        return {"user": user}
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
