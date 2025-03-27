@@ -13,7 +13,7 @@ import io
 from django.core.cache import cache
 from django.http import HttpResponse
 from PIL import Image, ImageDraw, ImageFont
-from core.utils import get_anonymous_cache_key
+from core.utils import get_anonymous_cache_key, CustomResponse
 
 
 class RegisterView(APIView):
@@ -22,10 +22,9 @@ class RegisterView(APIView):
     @extend_schema(request=UserSerializer, responses=UserSerializer)
     def post(self, request):
         serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response({'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return CustomResponse.success("ثبت نام با موفقیت انجام شد", data={"user": user.id}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -34,24 +33,22 @@ class LoginView(APIView):
     @extend_schema(request=LoginSerializer, responses=LoginSerializer)
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh)
-            })
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        return CustomResponse.success({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        })
 
 
 class ChangePasswordView(APIView):
     @extend_schema(request=ChangePasswordSerializer, responses=ChangePasswordSerializer)
     def put(self, request):
         serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "رمز عبور با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success("رمز عبور با موفقیت تغییر کرد.")
 
 
 class AdminChangePasswordView(APIView):
@@ -60,14 +57,14 @@ class AdminChangePasswordView(APIView):
     @extend_schema(request=AdminChangePasswordSerializer, responses=AdminChangePasswordSerializer)
     def put(self, request):
         serializer = AdminChangePasswordSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "رمز عبور کاربر با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response("رمز عبور کاربر با موفقیت تغییر کرد.")
 
 
 class GenerateCaptchaView(APIView):
     permission_classes = (AllowAny, )
+
     def get(self, request):
         captcha_text = ''.join(random.choices((string.digits + string.ascii_lowercase) , k=7))
 
