@@ -492,5 +492,5 @@ poetry.toml
 pyrightconfig.json
 
 /.env
-
+/tokens.txt
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm,pycharm+all,pycharm+iml,django
