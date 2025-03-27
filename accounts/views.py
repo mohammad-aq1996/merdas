@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
-from .models import User, Role
+from .models import User, Role, UserGroup
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAdminUser
 import random
@@ -15,7 +15,8 @@ from django.http import HttpResponse
 from PIL import Image, ImageDraw, ImageFont
 from core.utils import get_anonymous_cache_key, CustomResponse
 from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer,
-                          PermissionSerializer, RoleSerializer, RoleCreateUpdateSerializer)
+                          PermissionSerializer, RoleSerializer, RoleCreateUpdateSerializer, GroupSerializer,
+                          GroupCreateUpdateSerializer, )
 
 
 class RegisterView(APIView):
@@ -150,10 +151,54 @@ class RoleDetailView(APIView):
         return CustomResponse.success("نقش مورد نظر با موفقیت حذف شد")
 
 
+class GroupView(APIView):
+    permission_classes = (AllowAny, )
+
+    @extend_schema(request=GroupSerializer, responses=GroupSerializer)
+    def get(self, request, pk=None):
+        groups = UserGroup.objects.all()
+        serializer = GroupSerializer(groups, many=True)
+        return CustomResponse.success(message=serializer.data)
+
+    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupCreateUpdateSerializer)
+    def post(self, request):
+        serializer = GroupCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success("گروه با موفقیت ساخته شد")
 
 
+class GroupDetailView(APIView):
+    permission_classes = (IsAdminUser, )
 
+    @extend_schema(request=GroupSerializer, responses=GroupSerializer)
+    def get(self, request, pk=None):
+        try:
+            group = UserGroup.objects.get(pk=pk)
+        except UserGroup.DoesNotExist:
+            return CustomResponse.error(message="گروه مورد نظر یافت نشد")
 
+        serializer = GroupSerializer(group)
+        return CustomResponse.success(message=serializer.data)
+
+    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupCreateUpdateSerializer)
+    def put(self, request, pk=None):
+        try:
+            instance = UserGroup.objects.get(pk=pk)
+        except UserGroup.DoesNotExist:
+            return CustomResponse.error(message="گروه مورد نظر یافت نشد")
+        serializer = GroupCreateUpdateSerializer(instance=instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(message=serializer.data)
+
+    def delete(self, request, pk=None):
+        try:
+            instance = UserGroup.objects.get(pk=pk)
+        except UserGroup.DoesNotExist:
+            return CustomResponse.error(message="گروه مورد نظر یافت نشد")
+        instance.delete()
+        return CustomResponse.success("گروه مورد نظر با موفقیت حذف شد")
 
 
 

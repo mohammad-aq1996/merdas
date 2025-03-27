@@ -14,4 +14,6 @@ urlpatterns = [
     path('role/', RoleView.as_view(), name='role'),
     path('role/<int:pk>/', RoleDetailView.as_view(), name='roles'),
 
+    path('group/', GroupView.as_view(), name='group'),
+    path('group/<int:pk>/', GroupDetailView.as_view(), name='groups'),
 ]

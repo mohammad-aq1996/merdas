@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Role
+from .models import User, Role, UserGroup
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from core.utils import get_anonymous_cache_key
@@ -129,6 +129,7 @@ class PermissionSerializer(serializers.ModelSerializer):
 
 class RoleSerializer(serializers.ModelSerializer):
     permissions = PermissionSerializer(many=True)
+
     class Meta:
         model = Role
         fields = ('id', 'name', 'permissions')
@@ -140,10 +141,18 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'permissions')
 
 
+class GroupSerializer(serializers.ModelSerializer):
+    roles = RoleSerializer(many=True)
+
+    class Meta:
+        model = UserGroup
+        fields = ('id', 'name', 'roles')
 
 
-
-
+class GroupCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserGroup
+        fields = ('id', 'name', 'roles')
 
 
 
