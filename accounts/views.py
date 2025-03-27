@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 from core.utils import get_anonymous_cache_key, CustomResponse
 from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer,
                           PermissionSerializer, RoleSerializer, RoleCreateUpdateSerializer, GroupSerializer,
-                          GroupCreateUpdateSerializer, )
+                          GroupCreateUpdateSerializer, UserGetSerializer, USerUpdateSerializer, )
 
 
 class RegisterView(APIView):
@@ -200,6 +200,47 @@ class GroupDetailView(APIView):
         instance.delete()
         return CustomResponse.success("گروه مورد نظر با موفقیت حذف شد")
 
+
+class UserListView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=UserGetSerializer, responses=UserGetSerializer)
+    def get(self, requset):
+        users = User.objects.all()
+        serializer = UserGetSerializer(users, many=True)
+        return CustomResponse.success(message=serializer.data)
+
+
+class UserDetailView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=UserGetSerializer, responses=UserGetSerializer)
+    def get(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return CustomResponse.error("کاربر مورد نظر وجود ندارد")
+        serializer = UserGetSerializer(user)
+        return CustomResponse.success(message=serializer.data)
+
+    @extend_schema(request=USerUpdateSerializer, responses=USerUpdateSerializer)
+    def put(self, request, pk=None):
+        try:
+            instance = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return CustomResponse.error("کاربر مورد نظر وجود ندارد")
+        serializer = USerUpdateSerializer(instance=instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(message=serializer.data)
+
+    def delete(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return CustomResponse.error("کاربر مورد نظر وجود ندارد")
+        user.delete()
+        return CustomResponse.success("کاربر با موفقیت حذف شد")
 
 
 

@@ -155,8 +155,18 @@ class GroupCreateUpdateSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'roles')
 
 
+class UserGetSerializer(serializers.ModelSerializer):
+    groups = GroupSerializer(many=True)
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'last_login', 'is_active', 'groups')
 
 
+class USerUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username', 'groups', 'is_active')
 
 
 
