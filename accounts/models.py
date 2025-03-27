@@ -1,5 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractUser, Permission
+
+
+class Role(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    permissions = models.ManyToManyField(Permission, related_name="roles", blank=True)
+
+    def __str__(self):
+        return self.name
+
+class UserGroup(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    roles = models.ManyToManyField(Role, related_name="groups", blank=True)
 
 
 class UserManager(BaseUserManager):
@@ -26,6 +39,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
+
+    groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
 
     objects = UserManager()
 
