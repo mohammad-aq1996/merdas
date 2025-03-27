@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User
+from .models import User, Role
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from core.utils import get_anonymous_cache_key
+from django.contrib.auth.models import Permission
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -51,6 +52,7 @@ class LoginSerializer(serializers.Serializer):
 
         return {"user": user}
 
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True)
@@ -85,6 +87,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.save()
         return user
 
+
 class AdminChangePasswordSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     new_password = serializers.CharField(write_only=True)
@@ -116,3 +119,52 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ('id', 'codename')
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True)
+    class Meta:
+        model = Role
+        fields = ('id', 'name', 'permissions')
+
+
+class RoleCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ('id', 'name', 'permissions')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,10 +1,10 @@
+from django.contrib.auth.models import Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
-from .models import User
-from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer, )
+from .models import User, Role
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAdminUser
 import random
@@ -14,6 +14,8 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from PIL import Image, ImageDraw, ImageFont
 from core.utils import get_anonymous_cache_key, CustomResponse
+from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer,
+                          PermissionSerializer, RoleSerializer, RoleCreateUpdateSerializer)
 
 
 class RegisterView(APIView):
@@ -86,3 +88,82 @@ class GenerateCaptchaView(APIView):
         img_io.seek(0)
 
         return HttpResponse(img_io, content_type="image/png")
+
+
+class PermissionView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=PermissionSerializer, responses=PermissionSerializer)
+    def get(self, request):
+        permissions = Permission.objects.all()
+        serializer = PermissionSerializer(permissions, many=True)
+        return CustomResponse.success(message=serializer.data)
+
+
+class RoleView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=RoleSerializer, responses=RoleSerializer)
+    def get(self, request, pk=None):
+        roles = Role.objects.all()
+        serializer = RoleSerializer(roles, many=True)
+        return CustomResponse.success(message=serializer.data)
+
+    @extend_schema(request=RoleCreateUpdateSerializer, responses=RoleCreateUpdateSerializer)
+    def post(self, request):
+        serializer = RoleCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success("نقش با موفقیت ساخته شد")
+
+
+class RoleDetailView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=RoleSerializer, responses=RoleSerializer)
+    def get(self, request, pk=None):
+        try:
+            role = Role.objects.get(pk=pk)
+        except Role.DoesNotExist:
+            return CustomResponse.error(message="نقش مورد نظر یافت نشد")
+
+        serializer = RoleSerializer(role)
+        return CustomResponse.success(message=serializer.data)
+
+    @extend_schema(request=RoleCreateUpdateSerializer, responses=RoleCreateUpdateSerializer)
+    def put(self, request, pk=None):
+        try:
+            instance = Role.objects.get(pk=pk)
+        except Role.DoesNotExist:
+            return CustomResponse.error(message="نقش مورد نظر یافت نشد")
+        serializer = RoleCreateUpdateSerializer(instance=instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(message=serializer.data)
+
+    def delete(self, request, pk=None):
+        try:
+            instance = Role.objects.get(pk=pk)
+        except Role.DoesNotExist:
+            return CustomResponse.error(message="نقش مورد نظر یافت نشد")
+        instance.delete()
+        return CustomResponse.success("نقش مورد نظر با موفقیت حذف شد")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

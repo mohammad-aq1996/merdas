@@ -9,4 +9,9 @@ urlpatterns = [
     path('admin-change-password/', AdminChangePasswordView.as_view(), name='admin-change-password'),
     path('captcha/', GenerateCaptchaView.as_view(), name='captcha'),
 
+    path('permissions/', PermissionView.as_view(), name='permissions'),
+
+    path('role/', RoleView.as_view(), name='role'),
+    path('role/<int:pk>/', RoleDetailView.as_view(), name='roles'),
+
 ]
