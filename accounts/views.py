@@ -14,9 +14,7 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from PIL import Image, ImageDraw, ImageFont
 from core.utils import get_anonymous_cache_key, CustomResponse
-from .serializers import (UserSerializer, LoginSerializer, ChangePasswordSerializer, AdminChangePasswordSerializer,
-                          PermissionSerializer, RoleSerializer, RoleCreateUpdateSerializer, GroupSerializer,
-                          GroupCreateUpdateSerializer, UserGetSerializer, USerUpdateSerializer, )
+from .serializers import *
 
 
 class RegisterView(APIView):
@@ -243,7 +241,12 @@ class UserDetailView(APIView):
         return CustomResponse.success("کاربر با موفقیت حذف شد")
 
 
-
+class LoginAttemptsView(APIView):
+    @extend_schema(responses=LoginAttemptsSerializer)
+    def get(self, request):
+        qs = LoginAttempt.objects.filter(username=request.user.username)[:5]
+        serializer = LoginAttemptsSerializer(qs, many=True)
+        return CustomResponse.success(message=serializer.data)
 
 
 

@@ -19,4 +19,5 @@ urlpatterns = [
 
     path('users/', UserListView.as_view(), name='users'),
     path('user/<int:pk>/', UserDetailView.as_view(), name='users'),
+    path('attempt/', LoginAttemptsView.as_view(), name='attempt'),
 ]
