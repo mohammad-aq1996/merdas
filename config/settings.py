@@ -188,3 +188,4 @@ CACHES = {
         }
     }
 }
+USE_TZ = True

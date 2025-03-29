@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Role, UserGroup
+from .models import User, Role, UserGroup, LoginAttempt
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from core.utils import get_anonymous_cache_key
 from django.contrib.auth.models import Permission
+from django.utils.timezone import now, timedelta
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,9 +47,28 @@ class LoginSerializer(serializers.Serializer):
 
         cache.delete(captcha_key)
 
+        failed_login_limit = 3
+
+        login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
+
+        counter = 0
+
+        if login_attempt and not login_attempt[0].success:
+            for attempt in login_attempt:
+                if not attempt.success:
+                    counter += 1
+                else:
+                    break
+        if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=2)  :
+            raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
+
         user = authenticate(username=data['username'], password=data['password'])
+
         if not user:
+            LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=False)
             raise serializers.ValidationError("نام کاربری یا رمز عبور اشتباه است.")
+
+        LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=True)
 
         return {"user": user}
 
