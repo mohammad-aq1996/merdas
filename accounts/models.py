@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import AbstractUser, Permission
-from django.utils.timezone import now
+from django.utils.timezone import now, timedelta
+from core.models import BaseModel
 
 
 class Role(models.Model):
@@ -53,13 +54,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.username
 
 
-class LoginAttempt(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    username = models.CharField(max_length=150, null=True, blank=True)
-    success = models.BooleanField()
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    timestamp = models.DateTimeField(default=now)
+class LoginAttempt(BaseModel):
+    create = models.DateTimeField(auto_now_add=True)
+    username = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField()
+    success = models.BooleanField(default=False)
 
     def __str__(self):
-        status = "موفق" if self.success else "ناموفق"
-        return f"{self.username or self.user} - {status} در {self.timestamp}"
+        return f"{self.username} - {self.success}"
+
+    class Meta:
+        ordering = ['-created_at']
