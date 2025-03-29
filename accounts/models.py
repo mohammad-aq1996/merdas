@@ -42,7 +42,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
 
-    force_password_change = models.BooleanField(default=False)
+    force_password_change = models.BooleanField(default=True)
+    password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
+
     groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
 
     objects = UserManager()
@@ -53,6 +55,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.username
 
+    def password_expired(self):
+        return now() - self.password_changed_at > timedelta(days=90)
 
 class LoginAttempt(BaseModel):
     create = models.DateTimeField(auto_now_add=True)

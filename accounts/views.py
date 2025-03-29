@@ -36,6 +36,10 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+
+        if user.password_expired() or user.force_password_change:
+            raise serializers.ValidationError("رمز عبور شما منقضی شده است")
+
         refresh = RefreshToken.for_user(user)
         return CustomResponse.success({
             'access': str(refresh.access_token),

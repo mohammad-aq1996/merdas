@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
-from core.utils import get_anonymous_cache_key
+from core.utils import get_anonymous_cache_key, set_new_password
 from django.contrib.auth.models import Permission
 from django.utils.timezone import now, timedelta
 
@@ -113,7 +113,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self, **kwargs):
         """ تغییر رمز عبور و ذخیره در پایگاه داده """
         user = self.context['request'].user
-        user.set_password(self.validated_data['new_password'])
+        set_new_password(user, self.validated_data['new_password'])
         user.save()
         return user
 
@@ -148,7 +148,7 @@ class AdminChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.validated_data['user']
-        user.set_password(self.validated_data['new_password'])
+        set_new_password(user, self.validated_data['new_password'])
         user.save()
         return user
 
