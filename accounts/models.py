@@ -59,7 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.username
 
     def password_expired(self):
-        return now() - self.password_changed_at > timedelta(minutes=30)
+        return now() - self.password_changed_at > timedelta(days=30)
 
     def must_change_password(self):
         """ چک می‌کند که آیا کاربر باید پسوردش را تغییر دهد یا نه """
