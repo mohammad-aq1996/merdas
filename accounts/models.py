@@ -65,3 +65,11 @@ class LoginAttempt(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class IllUsername(BaseModel):
+    username = models.CharField(max_length=255)
+
+
+class IllPassword(BaseModel):
+    password = models.CharField(max_length=255)
