@@ -37,8 +37,8 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
 
-        if user.password_expired() or user.force_password_change:
-            raise serializers.ValidationError("رمز عبور شما منقضی شده است")
+        if user.must_change_password():
+            return CustomResponse.error("رمز عبور شما منقضی شده است")
 
         refresh = RefreshToken.for_user(user)
         return CustomResponse.success({
@@ -52,7 +52,12 @@ class ChangePasswordView(APIView):
     def put(self, request):
         serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            new_password = serializer.validated_data['new_password']
+            request.user.update_password(new_password)  # حالا این متد، چک و ذخیره رو خودش انجام میده
+        except ValueError as e:
+            return CustomResponse.error(str(e))
+        # serializer.save()
         return CustomResponse.success("رمز عبور با موفقیت تغییر کرد.")
 
 

@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
-from core.utils import get_anonymous_cache_key, set_new_password
+from core.utils import get_anonymous_cache_key
 from django.contrib.auth.models import Permission
 from django.utils.timezone import now, timedelta
 
@@ -43,16 +43,16 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        captcha_key = get_anonymous_cache_key(request)
-        cached_captcha = cache.get(captcha_key)
-
-        if not cached_captcha:
-            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-
-        if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError("کپچا اشتباه است.")
-
-        cache.delete(captcha_key)
+        # captcha_key = get_anonymous_cache_key(request)
+        # cached_captcha = cache.get(captcha_key)
+        #
+        # if not cached_captcha:
+        #     raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+        #
+        # if data["captcha"] != cached_captcha:
+        #     raise serializers.ValidationError("کپچا اشتباه است.")
+        #
+        # cache.delete(captcha_key)
 
         failed_login_limit = 3
 
@@ -87,18 +87,18 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        captcha_key = get_anonymous_cache_key(request)
-        cached_captcha = cache.get(captcha_key)
+        # captcha_key = get_anonymous_cache_key(request)
+        # cached_captcha = cache.get(captcha_key)
+        #
+        # if not cached_captcha:
+        #     raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+        #
+        # if data["captcha"] != cached_captcha:
+        #     raise serializers.ValidationError("کپچا اشتباه است.")
+        #
+        # cache.delete(captcha_key)
 
-        if not cached_captcha:
-            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-
-        if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError("کپچا اشتباه است.")
-
-        cache.delete(captcha_key)
-
-        if IllPassword.objects.filter(username=data["new_password"]).exists():
+        if IllPassword.objects.filter(password=data["new_password"]).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
 
         if not request.user.check_password(data['old_password']):
@@ -109,13 +109,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         validate_password(value)
         return value
-
-    def save(self, **kwargs):
-        """ تغییر رمز عبور و ذخیره در پایگاه داده """
-        user = self.context['request'].user
-        set_new_password(user, self.validated_data['new_password'])
-        user.save()
-        return user
 
 
 class AdminChangePasswordSerializer(serializers.Serializer):
@@ -148,7 +141,7 @@ class AdminChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.validated_data['user']
-        set_new_password(user, self.validated_data['new_password'])
+        user.set_password(self.validated_data['new_password'])
         user.save()
         return user
 

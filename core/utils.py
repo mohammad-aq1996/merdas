@@ -29,8 +29,8 @@ def get_anonymous_cache_key(request, prefix='anon_cache'):
     return key
 
 
-def set_new_password(user, new_password):
-    user.set_password(new_password)  # تغییر پسورد
-    user.password_changed_at = now()  # ثبت زمان جدید
-    user.force_password_change = False  # اگر مجبور به تغییر پسورد بوده، ریست بشه
-    user.save()
+# def set_new_password(user, new_password):
+#     user.set_password(new_password)  # تغییر پسورد
+#     user.password_changed_at = now()  # ثبت زمان جدید
+#     user.force_password_change = False  # اگر مجبور به تغییر پسورد بوده، ریست بشه
+#     user.save()
