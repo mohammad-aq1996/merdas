@@ -16,6 +16,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'password']
         extra_kwargs = {'password': {'write_only': True}}
 
+    def validate_password(self, password):
+        if IllPassword.objects.filter(username=password).exists():
+            raise serializers.ValidationError("رمز عبور غیرمجاز است")
+        return password
+
     def validate_username(self, value):
         if IllUsername.objects.filter(username=value).exists():
             raise serializers.ValidationError('نام کاربری غیرمجاز است')
@@ -38,16 +43,16 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        # captcha_key = get_anonymous_cache_key(request)
-        # cached_captcha = cache.get(captcha_key)
-        #
-        # if not cached_captcha:
-        #     raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-        #
-        # if data["captcha"] != cached_captcha:
-        #     raise serializers.ValidationError("کپچا اشتباه است.")
-        #
-        # cache.delete(captcha_key)
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(captcha_key)
+
+        if not cached_captcha:
+            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError("کپچا اشتباه است.")
+
+        cache.delete(captcha_key)
 
         failed_login_limit = 3
 
