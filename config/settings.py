@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     'drf_spectacular_sidecar',
 
     'core.apps.CoreConfig',
-    'accounts.apps.AccountsConfig'
+    'accounts.apps.AccountsConfig',
+    'logs.apps.LogsConfig'
 ]
 
 MIDDLEWARE = [
