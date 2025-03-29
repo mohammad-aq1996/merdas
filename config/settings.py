@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_spectacular',
     'drf_spectacular_sidecar',
-    'axes',
 
     'core.apps.CoreConfig',
     'accounts.apps.AccountsConfig'
@@ -63,7 +62,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -190,18 +188,3 @@ CACHES = {
         }
     }
 }
-
-# --------------------------
-# تنظیمات مربوط به تلاش‌های ناموفق
-# --------------------------
-AXES_FAILURE_LIMIT = 5  # حداکثر تلاش ناموفق قبل از قفل شدن
-AXES_COOLOFF_TIME = 15  # زمان قفل شدن حساب پس از ورود ناموفق (به دقیقه)
-AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True  # ترکیب نام کاربری و IP برای قفل
-
-PASSWORD_HISTORY_COUNT = 5  # ذخیره ۵ رمز عبور قبلی
-PASSWORD_EXPIRY_DAYS = 2  # اجبار تغییر رمز عبور هر ۹۰ روز
-
-# --------------------------
-# نمایش لاگین‌های اخیر کاربر
-# --------------------------
-ACCOUNT_SESSION_RECORDS = 5  # نمایش آخرین ۵ ورود موفق و ناموفق
