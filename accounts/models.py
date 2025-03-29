@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import AbstractUser, Permission
+from django.utils.timezone import now
 
 
 class Role(models.Model):
@@ -40,6 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
 
+    force_password_change = models.BooleanField(default=False)
     groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
 
     objects = UserManager()
@@ -49,3 +51,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+class LoginAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    username = models.CharField(max_length=150, null=True, blank=True)
+    success = models.BooleanField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(default=now)
+
+    def __str__(self):
+        status = "موفق" if self.success else "ناموفق"
+        return f"{self.username or self.user} - {status} در {self.timestamp}"
