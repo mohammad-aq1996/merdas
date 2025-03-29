@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Role, UserGroup, LoginAttempt
+from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from core.utils import get_anonymous_cache_key
@@ -17,6 +17,8 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_username(self, value):
+        if IllUsername.objects.filter(username=value).exists():
+            raise serializers.ValidationError('نام کاربری غیرمجاز است')
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError('کاربر با این نام کاربری وجود دارد')
         return value
@@ -91,6 +93,9 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         cache.delete(captcha_key)
 
+        if IllPassword.objects.filter(username=data["new_password"]).exists():
+            raise serializers.ValidationError("رمز عبور غیرمجاز است")
+
         if not request.user.check_password(data['old_password']):
             raise serializers.ValidationError("رمز عبور فعلی اشتباه است.")
 
@@ -119,15 +124,17 @@ class AdminChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        captcha_key = get_anonymous_cache_key(request)
-        cached_captcha = cache.get(captcha_key)
-
-        if not cached_captcha:
-            raise serializers.ValidationError( "کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-
-        if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError("کپچا اشتباه است.")
-        cache.delete(captcha_key)
+        # captcha_key = get_anonymous_cache_key(request)
+        # cached_captcha = cache.get(captcha_key)
+        #
+        # if not cached_captcha:
+        #     raise serializers.ValidationError( "کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+        #
+        # if data["captcha"] != cached_captcha:
+        #     raise serializers.ValidationError("کپچا اشتباه است.")
+        # cache.delete(captcha_key)
+        if IllPassword.objects.filter(username=data["new_password"]).exists():
+            raise serializers.ValidationError("رمز عبور غیرمجاز است")
         user = User.objects.filter(id=data['user_id']).first()
         data['user'] = user
         if not user:
