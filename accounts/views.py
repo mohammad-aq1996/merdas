@@ -15,6 +15,8 @@ from django.http import HttpResponse
 from PIL import Image, ImageDraw, ImageFont
 from core.utils import get_anonymous_cache_key, CustomResponse
 from .serializers import *
+from logs.utils import log_event
+from logs.models import EventLog
 
 
 class RegisterView(APIView):
@@ -22,7 +24,7 @@ class RegisterView(APIView):
 
     @extend_schema(request=UserSerializer, responses=UserSerializer)
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return CustomResponse.success("ثبت نام با موفقیت انجام شد", data={"user": user.id}, status=status.HTTP_201_CREATED)

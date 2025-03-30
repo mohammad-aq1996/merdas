@@ -63,6 +63,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'logs.middleware.RequestMiddleware',  # 📌 اضافه کردن میدلور
+
 ]
 
 ROOT_URLCONF = 'config.urls'

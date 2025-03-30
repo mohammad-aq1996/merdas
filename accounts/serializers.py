@@ -6,6 +6,8 @@ from django.core.cache import cache
 from core.utils import get_anonymous_cache_key
 from django.contrib.auth.models import Permission
 from django.utils.timezone import now, timedelta
+from logs.utils import log_event
+from logs.models import EventLog
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -17,7 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_password(self, password):
-        if IllPassword.objects.filter(username=password).exists():
+        if IllPassword.objects.filter(password=password).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
         return password
 
@@ -33,6 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             password=validated_data['password']
         )
+        # log_event()
         return user
 
 
@@ -73,9 +76,13 @@ class LoginSerializer(serializers.Serializer):
 
         if not user:
             LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=False)
+            log_event(user, EventLog.EventTypes.LOGIN, request=request, success=False)
+
             raise serializers.ValidationError("نام کاربری یا رمز عبور اشتباه است.")
 
         LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=True)
+
+        log_event(user, EventLog.EventTypes.LOGIN, request=request)
 
         return {"user": user}
 
@@ -131,7 +138,7 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         # if data["captcha"] != cached_captcha:
         #     raise serializers.ValidationError("کپچا اشتباه است.")
         # cache.delete(captcha_key)
-        if IllPassword.objects.filter(username=data["new_password"]).exists():
+        if IllPassword.objects.filter(password=data["new_password"]).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
         user = User.objects.filter(id=data['user_id']).first()
         data['user'] = user
