@@ -52,7 +52,8 @@ INSTALLED_APPS = [
 
     'core.apps.CoreConfig',
     'accounts.apps.AccountsConfig',
-    'logs.apps.LogsConfig'
+    'logs.apps.LogsConfig',
+    'merdas.apps.MerdasConfig'
 ]
 
 MIDDLEWARE = [
