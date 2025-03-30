@@ -29,6 +29,7 @@ class EventLog(BaseModel):
     timestamp = models.DateTimeField(default=now)  # زمان رویداد
     ip_address = models.GenericIPAddressField(null=True, blank=True)  # آدرس IP
     user_agent = models.TextField(blank=True, null=True)  # مرورگر یا کلاینت
+    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.get_event_type_display()} - {self.user} - {self.timestamp}"

@@ -1,16 +1,16 @@
 from .models import EventLog
 
-def log_event(user, event_type, success=True, request=None, extra_data=None):
+def log_event(user, event_type, success=True, request=None, description=None):
     """
     ثبت رویداد در دیتابیس
     :param user: کاربری که رویداد را ایجاد کرده
     :param event_type: نوع رویداد (از EventLog.EventTypes)
     :param success: آیا عملیات موفق بوده یا نه
     :param request: شیء request برای گرفتن IP و User-Agent
-    :param extra_data: اطلاعات اضافی در قالب دیکشنری
+    :param description: اطلاعات اضافی در قالب دیکشنری
     """
-    if extra_data is None:
-        extra_data = {}
+    if description is None:
+        description = {}
 
     ip_address = None
     user_agent = None
@@ -25,6 +25,7 @@ def log_event(user, event_type, success=True, request=None, extra_data=None):
         success=success,
         ip_address=ip_address,
         user_agent=user_agent,
+        description=description
     )
 
 def get_client_ip(request):
