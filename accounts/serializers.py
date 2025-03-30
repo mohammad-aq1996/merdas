@@ -149,6 +149,7 @@ class AdminChangePasswordSerializer(serializers.Serializer):
     def save(self, **kwargs):
         user = self.validated_data['user']
         user.set_password(self.validated_data['new_password'])
+        user.force_password_change = True
         user.save()
         return user
 
