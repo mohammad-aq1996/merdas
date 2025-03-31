@@ -39,13 +39,11 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
 
-        if user.must_change_password():
-            return CustomResponse.error("رمز عبور شما منقضی شده است")
-
         refresh = RefreshToken.for_user(user)
         return CustomResponse.success({
             'access': str(refresh.access_token),
-            'refresh': str(refresh)
+            'refresh': str(refresh),
+            'must_change_password': user.must_change_password(),
         })
 
 
