@@ -12,15 +12,19 @@ User = get_user_model()
 
 @receiver(post_save, sender=User)
 def log_user_create_or_update(sender, instance, created, **kwargs):
-    actor = get_current_user()  # 📌 گرفتن یوزری که درخواست داده
-    request = getattr(actor, "request", None)  # 📌 گرفتن `request`
+    try:
+        actor = get_current_user()  # 📌 گرفتن یوزری که درخواست داده
+        request = getattr(actor, "request", None)  # 📌 گرفتن `request`
+    except AttributeError:
+        actor = None
+        request = None
 
     if created:
         event_type = EventLog.EventTypes.CREATE_USER
-        description = f"user: {instance.username} created by {actor.username}"
+        description = f"user: {instance.username} created by {actor.username if actor else None}"
     else:
         event_type = EventLog.EventTypes.UPDATE_USER
-        description = f"user: {instance.username} updated by {actor.username}"
+        description = f"user: {instance.username} updated by {actor.username if actor else None}"
 
     log_event(actor, event_type, request=request, description=description)
 

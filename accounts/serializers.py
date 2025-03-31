@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password']
+        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization']
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_password(self, password):
@@ -190,16 +190,22 @@ class GroupCreateUpdateSerializer(serializers.ModelSerializer):
 
 class UserGetSerializer(serializers.ModelSerializer):
     groups = GroupSerializer(many=True)
+    organization = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'last_login', 'is_active', 'groups')
+        # fields = ('id', 'username', 'last_login', 'is_active', 'groups')
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'groups']
+
+    def get_organization(self, obj):
+        return obj.organization.name if obj.organization else None
 
 
 class USerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username', 'groups', 'is_active')
+        # fields = ('username', 'groups', 'is_active')
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'groups']
 
 
 class LoginAttemptsSerializer(serializers.ModelSerializer):
