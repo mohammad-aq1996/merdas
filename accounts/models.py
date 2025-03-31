@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.timezone import now, timedelta
 from core.models import BaseModel
 from django.contrib.auth.hashers import make_password, check_password
+from merdas.models import Organization
 
 
 class Role(models.Model):
@@ -42,6 +43,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    national_number = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.CharField(max_length=255, blank=True, null=True)
 
     force_password_change = models.BooleanField(default=True)
     password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
