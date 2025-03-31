@@ -161,13 +161,13 @@ class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
-        fields = ('id', 'name', 'permissions')
+        fields = ('id', 'name', 'description', 'permissions')
 
 
 class RoleCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
-        fields = ('id', 'name', 'permissions')
+        fields = ('id', 'name', 'description', 'permissions')
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -175,13 +175,13 @@ class GroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserGroup
-        fields = ('id', 'name', 'roles')
+        fields = ('id', 'name', 'description', 'roles')
 
 
 class GroupCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGroup
-        fields = ('id', 'name', 'roles')
+        fields = ('id', 'name', 'description', 'roles')
 
 
 class UserGetSerializer(serializers.ModelSerializer):

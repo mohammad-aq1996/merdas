@@ -9,6 +9,7 @@ from merdas.models import Organization
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
     permissions = models.ManyToManyField(Permission, related_name="roles", blank=True)
 
     def __str__(self):
@@ -16,6 +17,7 @@ class Role(models.Model):
 
 class UserGroup(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
     roles = models.ManyToManyField(Role, related_name="groups", blank=True)
 
 
