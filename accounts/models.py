@@ -18,15 +18,31 @@ class Role(models.Model):
 class UserGroup(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    roles = models.ManyToManyField(Role, related_name="groups", blank=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    roles = models.ManyToManyField(Role, related_name="groups")
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, password=None):
+    def create_user(self, username, first_name, last_name, national_number, organization, phone_number=None, password=None):
         if not username:
-            raise ValueError('Username is required')
+            raise ValueError('نام کاربری ضرور است')
+        if not first_name:
+            raise ValueError('نام ضرور است')
+        if not last_name:
+            raise ValueError('نام خانوادگی ضرور است')
+        if not national_number:
+            raise ValueError('کد ملی ضرور است')
+        if not organization:
+            raise ValueError('سازمان ضرور است')
 
-        user = self.model(username=username)
+        user = self.model(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            national_number=national_number,
+            organization=organization,
+            phone_number=phone_number
+        )
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -50,7 +66,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=255)
     national_number = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=255, blank=True, null=True)
-    organization = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     force_password_change = models.BooleanField(default=True)
     password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
@@ -93,6 +109,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.password_changed_at = now()
         self.force_password_change = False  # اجبار تغییر پسورد برداشته می‌شود
         self.save()
+
 
 class LoginAttempt(BaseModel):
     create = models.DateTimeField(auto_now_add=True)

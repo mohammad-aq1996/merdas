@@ -172,16 +172,20 @@ class RoleCreateUpdateSerializer(serializers.ModelSerializer):
 
 class GroupSerializer(serializers.ModelSerializer):
     roles = RoleSerializer(many=True)
+    organization = serializers.SerializerMethodField()
 
     class Meta:
         model = UserGroup
-        fields = ('id', 'name', 'description', 'roles')
+        fields = ('id', 'name', 'description', 'roles', 'organization')
+
+    def get_organization(self, obj):
+        return obj.organization.name if obj.organization else None
 
 
 class GroupCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGroup
-        fields = ('id', 'name', 'description', 'roles')
+        fields = ('id', 'name', 'description', 'roles', 'organization')
 
 
 class UserGetSerializer(serializers.ModelSerializer):
