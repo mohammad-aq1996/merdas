@@ -42,16 +42,16 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        # captcha_key = get_anonymous_cache_key(request)
-        # cached_captcha = cache.get(captcha_key)
-        #
-        # if not cached_captcha:
-        #     raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-        #
-        # if data["captcha"] != cached_captcha:
-        #     raise serializers.ValidationError("کپچا اشتباه است.")
-        #
-        # cache.delete(captcha_key)
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(captcha_key)
+
+        if not cached_captcha:
+            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError("کپچا اشتباه است.")
+
+        cache.delete(captcha_key)
 
         failed_login_limit = 3
 
@@ -90,16 +90,16 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, data):
         request = self.context.get("request")
-        # captcha_key = get_anonymous_cache_key(request)
-        # cached_captcha = cache.get(captcha_key)
-        #
-        # if not cached_captcha:
-        #     raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
-        #
-        # if data["captcha"] != cached_captcha:
-        #     raise serializers.ValidationError("کپچا اشتباه است.")
-        #
-        # cache.delete(captcha_key)
+        captcha_key = get_anonymous_cache_key(request)
+        cached_captcha = cache.get(captcha_key)
+
+        if not cached_captcha:
+            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+
+        if data["captcha"] != cached_captcha:
+            raise serializers.ValidationError("کپچا اشتباه است.")
+
+        cache.delete(captcha_key)
 
         if IllPassword.objects.filter(password=data["new_password"]).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
