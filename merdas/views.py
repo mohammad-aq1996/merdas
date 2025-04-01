@@ -1,9 +1,6 @@
-from http.client import responses
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import get_object_or_404
 from .models import Organization, OrganizationType
 from .serializers import OrganizationSerializer, OrganizationTypeSerializer, OrganizationReadSerializer
 from core.utils import CustomResponse
@@ -11,6 +8,8 @@ from drf_spectacular.utils import extend_schema
 
 
 class OrganizationTypeAPI(APIView):
+    queryset = OrganizationType.objects.all()
+
     @extend_schema(responses=OrganizationTypeSerializer)
     def get(self, request, *args, **kwargs):
         types = OrganizationType.objects.all()
@@ -27,6 +26,8 @@ class OrganizationTypeAPI(APIView):
 
 
 class OrganizationTypeDetailAPI(APIView):
+    queryset = OrganizationType.objects.all()
+
     @extend_schema(responses=OrganizationTypeSerializer)
     def get(self, request, pk):
         try:
@@ -57,6 +58,8 @@ class OrganizationTypeDetailAPI(APIView):
 
 
 class OrganizationAPI(APIView):
+    queryset = Organization.objects.all()
+
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, *args, **kwargs):
         parent_id = request.query_params.get("parent", None)
@@ -78,6 +81,8 @@ class OrganizationAPI(APIView):
 
 
 class OrganizationDetailAPI(APIView):
+    queryset = Organization.objects.all()
+
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, org_id, *args, **kwargs):
         try:
