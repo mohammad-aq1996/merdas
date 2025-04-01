@@ -5,6 +5,7 @@ from django.utils.timezone import now, timedelta
 from core.models import BaseModel
 from django.contrib.auth.hashers import make_password, check_password
 from merdas.models import Organization
+from django.contrib.auth.models import Group
 
 
 class Role(models.Model):
@@ -15,10 +16,11 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
+
 class UserGroup(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     roles = models.ManyToManyField(Role, related_name="groups")
 
 
@@ -48,7 +50,11 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, username, password):
-        user = self.create_user(username, password)
+        user = self.model(
+            username=username,
+        )
+        user.set_password(password)
+
         user.is_admin = True
         user.is_staff = True
         user.is_superuser = True
@@ -56,17 +62,18 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
     username = models.CharField(max_length=50, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)  # نیاز به مدیریت دستی داریم
 
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    national_number = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=255, blank=True, null=True)
+    last_name = models.CharField(max_length=255, blank=True, null=True)
+    national_number = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=255, blank=True, null=True)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, blank=True, null=True)
 
     force_password_change = models.BooleanField(default=True)
     password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
@@ -82,6 +89,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+    def get_all_permissions(self):
+        if self.is_superuser:
+            return set(Permission.objects.values_list("codename", flat=True))  # همه پرمیژن‌ها
+        roles = Role.objects.filter(groups__users=self)
+
+        permissions = Permission.objects.filter(roles__in=roles).values_list(
+            "content_type__app_label", "codename"
+        )
+        return {f"{app}.{code}" for app, code in permissions}
+
+    def has_perm(self, perm):
+        if self.is_superuser:
+            return True
+        return perm in self.get_all_permissions()
+
+    def has_module_perms(self, app_label):
+        if self.is_superuser:
+            return True
+        return any(perm.startswith(f"{app_label}.") for perm in self.get_all_permissions())
 
     def password_expired(self):
         return now() - self.password_changed_at > timedelta(days=30)
