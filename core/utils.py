@@ -1,21 +1,23 @@
 from rest_framework.response import Response
 from django.utils.timezone import now
-
+from rest_framework import status as http_status
 
 class CustomResponse:
     @staticmethod
-    def success(message, data=None, status=200):
+    def success(message, data=None, status=http_status.HTTP_200_OK):
         response = {
             "success": True,
+            "status": status,
             "message": message,
             "data": data
         }
         return Response(response, status=status)
 
     @staticmethod
-    def error(message, errors=None, status=400):
+    def error(message, errors=None, status=http_status.HTTP_400_BAD_REQUEST):
         response = {
             "success": False,
+            "status": status,
             "message": message,
             "errors": errors
         }

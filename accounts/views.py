@@ -26,8 +26,8 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = UserSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return CustomResponse.success("ثبت نام با موفقیت انجام شد", data={"user": user.id}, status=status.HTTP_201_CREATED)
+        serializer.save()
+        return CustomResponse.success(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -57,7 +57,6 @@ class ChangePasswordView(APIView):
             request.user.update_password(new_password)  # حالا این متد، چک و ذخیره رو خودش انجام میده
         except ValueError as e:
             return CustomResponse.error(str(e))
-        # serializer.save()
         return CustomResponse.success("رمز عبور با موفقیت تغییر کرد.")
 
 

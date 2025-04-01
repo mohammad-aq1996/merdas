@@ -23,4 +23,4 @@ def custom_exception_handler(exc, context):
                                     errors=response.data,
                                     status=response.status_code)
 
-    # return CustomResponse.error("خطای داخلی سرور", status=500)
+    return CustomResponse.error("خطای داخلی سرور", status=500)

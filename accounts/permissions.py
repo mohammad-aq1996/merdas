@@ -5,6 +5,8 @@ class GroupPermissions(BasePermission):
     چک می‌کنه که آیا کاربر پرمیژن موردنیاز رو از طریق گروه‌ها داره.
     """
     def has_permission(self, request, view):
+        if request.user.is_authenticated and request.user.is_superuser:
+            return True
         if not request.user.is_authenticated:  # بررسی لاگین بودن
             return False
 
