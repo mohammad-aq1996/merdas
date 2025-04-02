@@ -6,7 +6,6 @@ from drf_spectacular.types import OpenApiTypes
 
 from .models import Settings
 from rest_framework import serializers
-from rest_framework.permissions import AllowAny
 
 
 class SettingsSerializer(serializers.ModelSerializer):
@@ -16,8 +15,7 @@ class SettingsSerializer(serializers.ModelSerializer):
 
 
 class SettingsAPIView(APIView):
-    # queryset = Settings.objects.all()
-    permission_classes = (AllowAny,)
+    queryset = Settings.objects.all()
 
     @extend_schema(responses=SettingsSerializer)
     def get(self, request):
