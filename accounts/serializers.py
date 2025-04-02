@@ -8,6 +8,7 @@ from django.contrib.auth.models import Permission
 from django.utils.timezone import now, timedelta
 from logs.utils import log_event
 from logs.models import EventLog
+from core.models import Settings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -53,7 +54,9 @@ class LoginSerializer(serializers.Serializer):
 
         cache.delete(captcha_key)
 
-        failed_login_limit = 3
+        failed_login_limit = Settings.get_setting("MAX_FAILED_LOGIN_ATTEMPTS", 2)
+
+        account_lockout_time = Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2)
 
         login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
 
@@ -65,7 +68,7 @@ class LoginSerializer(serializers.Serializer):
                     counter += 1
                 else:
                     break
-        if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=2)  :
+        if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=account_lockout_time):
             raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
 
         user = authenticate(username=data['username'], password=data['password'])

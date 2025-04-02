@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.timezone import now, timedelta
-from core.models import BaseModel
+from core.models import BaseModel, Settings
 from django.contrib.auth.hashers import make_password, check_password
 from merdas.models import Organization
 from django.contrib.auth.models import Group
@@ -111,7 +111,8 @@ class User(AbstractBaseUser):
         return any(perm.startswith(f"{app_label}.") for perm in self.get_all_permissions())
 
     def password_expired(self):
-        return now() - self.password_changed_at > timedelta(days=30)
+        expire_days = Settings.get_setting("PASSWORD_EXPIRATION_DAYS", default=15)
+        return now() - self.password_changed_at > timedelta(days=expire_days)
 
     def must_change_password(self):
         """ چک می‌کند که آیا کاربر باید پسوردش را تغییر دهد یا نه """
@@ -121,7 +122,8 @@ class User(AbstractBaseUser):
         """ بررسی می‌کند که آیا پسورد جدید در لیست پسوردهای قدیمی هست یا نه """
         return any(check_password(new_password, old_pwd) for old_pwd in self.old_passwords)
 
-    def update_password(self, new_password, max_old_passwords=5):
+    def update_password(self, new_password):
+        max_old_passwords = Settings.get_setting("PASSWORD_HISTORY_LIMIT", default=5)
         """ ذخیره پسورد جدید و حذف قدیمی‌ها از لیست """
         if self.check_old_passwords(new_password):
             raise ValueError(f"استفاده از {max_old_passwords} رمزعبور قبلی مجاز نمیباشد")
