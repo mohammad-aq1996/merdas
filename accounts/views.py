@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
 from .models import User, Role, UserGroup
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 import random
 import string
 import io
@@ -52,6 +52,7 @@ class LoginView(APIView):
 
 class ChangePasswordView(APIView):
     queryset = User.objects.all()
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(request=ChangePasswordSerializer, responses=ChangePasswordSerializer)
     def put(self, request):
@@ -255,6 +256,8 @@ class UserDetailView(APIView):
 
 
 class LoginAttemptsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     @extend_schema(responses=LoginAttemptsSerializer)
     def get(self, request):
         qs = LoginAttempt.objects.filter(username=request.user.username)[:5]
