@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: edc@1234
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
 
@@ -19,7 +19,7 @@ services:
     container_name: redis
     restart: always
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     command: redis-server --save 60 1 --loglevel warning
@@ -34,11 +34,10 @@ services:
     env_file:
       - back-env
     ports:
-      - "8000:8000"
+      - "8005:8005"
     volumes:
       - .:/app
-#    entrypoint: ["/app/entrypoint.sh"]
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8005"
 
 volumes:
   pg_data:
