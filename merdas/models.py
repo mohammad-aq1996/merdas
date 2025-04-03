@@ -53,3 +53,19 @@ class Standard(BaseModel):
 
     def __str__(self):
         return self.title
+
+
+class Question(BaseModel):
+    class QuestionLevel(models.TextChoices):
+        low = "Low"
+        moderate = "Moderate"
+        high = "High"
+        very_high = "Very High"
+
+    title = models.CharField(max_length=2048)
+    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name="questions")
+    question_level = models.CharField(choices=QuestionLevel.choices, max_length=20)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.question_level
