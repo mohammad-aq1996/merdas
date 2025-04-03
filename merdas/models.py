@@ -41,7 +41,7 @@ class FR(BaseModel):
     title = models.CharField(max_length=255)
     weight = models.PositiveIntegerField()
     description = models.TextField(blank=True, null=True)
-    sr = models.ForeignKey(SR, on_delete=models.CASCADE, related_name='frs')
+    sr = models.ManyToManyField(SR, related_name="fr")
 
     def __str__(self):
         return self.title
@@ -49,16 +49,7 @@ class FR(BaseModel):
 
 class Standard(BaseModel):
     title = models.CharField(max_length=255)
-    fr = models.ForeignKey(FR, on_delete=models.CASCADE, related_name='standards')
-
-    def clean(self):
-        total_weight = sum(fr.weight for fr in FR.objects.filter(standard=self))
-        if total_weight != 100:
-            raise ValidationError('جمع وزن‌های FR برای هر استاندارد باید ۱۰۰ باشد.')
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
+    fr = models.ManyToManyField(FR, related_name='standards')
 
     def __str__(self):
         return self.title
