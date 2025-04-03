@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Organization, OrganizationType, SR, Standard, FR
+from .models import Organization, OrganizationType, SR, Standard, FR, Question
 
 
 class OrganizationTypeSerializer(serializers.ModelSerializer):
@@ -90,3 +90,17 @@ class StandardCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("جمع وزن‌های FR باید دقیقاً ۱۰۰ باشد.")
 
         return data
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    standard = StandardSerializer()
+
+    class Meta:
+        model = Question
+        fields = ('id', 'title', 'description', 'standard', 'question_level')
+
+
+class QuestionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ('title', 'description', 'standard', 'question_level')

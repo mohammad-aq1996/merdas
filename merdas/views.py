@@ -271,3 +271,53 @@ class StandardDetailView(APIView):
         standard.delete()
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
+
+class QuestionListCreateView(APIView):
+    queryset = Question.objects.all()
+
+    @extend_schema(responses=QuestionSerializer)
+    def get(self, request):
+        question = Question.objects.all()
+        serializer = QuestionSerializer(question, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=QuestionSerializer, request=QuestionCreateSerializer)
+    def post(self, request):
+        serializer = QuestionCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error("ناموفق", errors=serializer.errors)
+
+
+class QuestionDetailView(APIView):
+    queryset = Question.objects.all()
+
+    @extend_schema(responses=QuestionSerializer)
+    def get(self, request, pk):
+        try:
+            question = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = QuestionSerializer(question)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=QuestionSerializer, request=QuestionCreateSerializer)
+    def put(self, request, pk):
+        try:
+            question = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = QuestionCreateSerializer(question, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error("ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        try:
+            question = Question.objects.get(pk=pk)
+        except Question.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        question.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)

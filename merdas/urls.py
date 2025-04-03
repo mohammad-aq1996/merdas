@@ -17,4 +17,7 @@ urlpatterns = [
     path('fr/', FRListCreateView.as_view(), name='fr-list'),
     path('fr/<int:pk>/', FRDetailView.as_view(), name='fr-detail'),
 
+    path("questions/", QuestionListCreateView.as_view(), name="question-list"),
+    path("questions/<int:pk>", QuestionDetailView.as_view(), name="question-detail"),
+
 ]
