@@ -1,8 +1,10 @@
+from pyexpat.errors import messages
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Organization, OrganizationType
-from .serializers import OrganizationSerializer, OrganizationTypeSerializer, OrganizationReadSerializer
+from .models import Organization, OrganizationType, SR, FR, Standard
+from .serializers import *
 from core.utils import CustomResponse
 from drf_spectacular.utils import extend_schema
 from core.persian_response import *
@@ -112,4 +114,160 @@ class OrganizationDetailAPI(APIView):
             return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
         organization.delete()
         return CustomResponse.success(delete_data(), status=status.HTTP_204_NO_CONTENT)
+
+
+# SR Views
+class SRListCreateView(APIView):
+    queryset = SR.objects.all()
+
+    @extend_schema(responses=SRSerializer)
+    def get(self, request):
+        sr = SR.objects.all()
+        serializer = SRSerializer(sr, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=SRSerializer, request=SRSerializer)
+    def post(self, request):
+        serializer = SRSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SRDetailView(APIView):
+    queryset = SR.objects.all()
+
+    @extend_schema(responses=SRSerializer)
+    def get(self, request, pk):
+        try:
+            sr = SR.objects.get(pk=pk)
+        except SR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = SRSerializer(sr)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=SRSerializer, request=SRSerializer)
+    def put(self, request, pk):
+        try:
+            sr = SR.objects.get(pk=pk)
+        except SR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = SRSerializer(sr, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        try:
+            sr = SR.objects.get(pk=pk)
+        except SR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        sr.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
+
+
+# FR Views
+class FRListCreateView(APIView):
+    queryset = FR.objects.all()
+
+    @extend_schema(responses=FRSerializer)
+    def get(self, request):
+        fr = FR.objects.all()
+        serializer = FRSerializer(fr, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=FRSerializer, request=FRCreateSerializer)
+    def post(self, request):
+        serializer = FRCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+
+class FRDetailView(APIView):
+    queryset = FR.objects.all()
+
+    @extend_schema(responses=FRSerializer)
+    def get(self, request, pk):
+        try:
+            fr = FR.objects.get(pk=pk)
+        except FR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = FRSerializer(fr)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=FRSerializer, request=FRCreateSerializer)
+    def put(self, request, pk):
+        try:
+            fr = FR.objects.get(pk=pk)
+        except FR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = FRCreateSerializer(fr, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        try:
+            fr = FR.objects.get(pk=pk)
+        except FR.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        fr.delete()
+        return CustomResponse.success(message=delete_data())
+
+
+# Standard Views
+class StandardListCreateView(APIView):
+    queryset = Standard.objects.all()
+
+    @extend_schema(responses=StandardSerializer)
+    def get(self, request):
+        standard = Standard.objects.all()
+        serializer = StandardSerializer(standard, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=StandardSerializer, request=StandardCreateSerializer)
+    def post(self, request):
+        serializer = StandardCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+
+class StandardDetailView(APIView):
+    queryset = Standard.objects.all()
+
+    @extend_schema(responses=StandardSerializer)
+    def get(self, request, pk):
+        try:
+            standard = Standard.objects.get(pk=pk)
+        except Standard.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = StandardSerializer(standard)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=StandardSerializer, request=StandardCreateSerializer)
+    def put(self, request, pk):
+        try:
+            standard = Standard.objects.get(pk=pk)
+        except Standard.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = StandardCreateSerializer(standard, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            standard = Standard.objects.get(pk=pk)
+        except Standard.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        standard.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 

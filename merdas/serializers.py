@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Organization, OrganizationType
+from .models import Organization, OrganizationType, SR, Standard, FR
 
 
 class OrganizationTypeSerializer(serializers.ModelSerializer):
@@ -41,3 +41,52 @@ class OrganizationReadSerializer(serializers.ModelSerializer):
     def get_parent(self, obj):
         return obj.parent.name if obj.parent else None
 
+
+class SRSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SR
+        fields = ('id', 'title', 'description')
+
+
+class FRSerializer(serializers.ModelSerializer):
+    sr = SRSerializer(many=True)
+
+    class Meta:
+        model = FR
+        fields = ('id', 'title', 'weight', 'description', 'sr')
+
+
+class FRCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FR
+        fields = ('title', 'weight', 'description', 'sr')
+
+
+class StandardSerializer(serializers.ModelSerializer):
+    fr = FRSerializer(many=True)
+
+    class Meta:
+        model = Standard
+        fields = ('id', 'title', 'fr')
+
+
+class StandardCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Standard
+        fields = ('title', 'fr')
+
+    def validate(self, data):
+        if 'fr' not in data: # for partial update
+            return data
+
+        fr_list = data.get('fr', [])  # لیست FRهای ارسالی
+
+        if not fr_list:
+            raise serializers.ValidationError("حداقل یک FR باید انتخاب شود.")
+
+        total_weight = sum(fr.weight for fr in fr_list)
+
+        if total_weight != 100:
+            raise serializers.ValidationError("جمع وزن‌های FR باید دقیقاً ۱۰۰ باشد.")
+
+        return data
