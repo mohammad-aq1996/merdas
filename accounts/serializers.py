@@ -78,17 +78,7 @@ class LoginSerializer(serializers.Serializer):
 
         account_lockout_time = Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2)
 
-        login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
-
-        counter = 0
-
-        if login_attempt and not login_attempt[0].success:
-            for attempt in login_attempt:
-                if not attempt.success:
-                    counter += 1
-                else:
-                    break
-        if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=account_lockout_time):
+        if self.is_account_locked(data['username'], failed_login_limit, account_lockout_time):
             raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
 
         # login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
