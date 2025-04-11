@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .models import Organization, OrganizationType, SR, Standard, FR, Question
+from .models import Organization, OrganizationType, SR, Standard, FR, Question, Assessment, AssessmentQuestionResponse
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class OrganizationTypeSerializer(serializers.ModelSerializer):
@@ -104,3 +108,47 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ('title', 'description', 'standard', 'question_level')
+
+
+
+class AssessmentSerializer(serializers.ModelSerializer):
+    contacts = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Assessment
+        fields = '__all__'
+
+
+class AssessmentQuestionResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssessmentQuestionResponse
+        fields = '__all__'
+
+    def validate(self, data):
+        if data['answer'] == AssessmentQuestionResponse.AnswerChoices.ALT and not data.get('substitute_text'):
+            raise serializers.ValidationError("Substitute text is required for 'alternate' answer.")
+        return data
+
+
+class BulkAssessmentResponseSerializer(serializers.Serializer):
+    assessment = serializers.PrimaryKeyRelatedField(queryset=Assessment.objects.all())
+    responses = AssessmentQuestionResponseSerializer(many=True)
+
+    def validate(self, data):
+        question_ids = [resp['question'].id for resp in data['responses']]
+        if len(set(question_ids)) != len(question_ids):
+            raise serializers.ValidationError("Duplicate question in responses.")
+        return data
+
+    def create(self, validated_data):
+        assessment = validated_data['assessment']
+        responses_data = validated_data['responses']
+        instances = []
+        for response_data in responses_data:
+            instances.append(AssessmentQuestionResponse.objects.update_or_create(
+                assessment=assessment,
+                question=response_data['question'],
+                defaults=response_data
+            )[0])
+        return instances
