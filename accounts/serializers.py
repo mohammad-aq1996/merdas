@@ -9,6 +9,7 @@ from django.utils.timezone import now, timedelta
 from logs.utils import log_event
 from logs.models import EventLog
 from core.models import Settings
+from .encrypt import decryption
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -20,11 +21,13 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_password(self, password):
+        # password = decryption(password)
         if IllPassword.objects.filter(password=password).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
         return password
 
     def validate_username(self, value):
+        # username = decryption(value)
         if IllUsername.objects.filter(username=value).exists():
             raise serializers.ValidationError('نام کاربری غیرمجاز است')
         if User.objects.filter(username=value).exists():
@@ -42,6 +45,8 @@ class LoginSerializer(serializers.Serializer):
     captcha = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        # username = decryption(data['username'])
+        # password = decryption(data['password'])
         request = self.context.get("request")
         captcha_key = get_anonymous_cache_key(request)
         cached_captcha = cache.get(captcha_key)
@@ -92,6 +97,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     captcha = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        # old_password = decryption(data['old_password'])
+        # new_password = decryption(data['new_password'])
         request = self.context.get("request")
         captcha_key = get_anonymous_cache_key(request)
         cached_captcha = cache.get(captcha_key)
@@ -113,6 +120,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return data
 
     def validate_new_password(self, value):
+        # value = decryption(value)
         validate_password(value)
         return value
 
@@ -137,6 +145,8 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         # if data["captcha"] != cached_captcha:
         #     raise serializers.ValidationError("کپچا اشتباه است.")
         # cache.delete(captcha_key)
+
+        # new_password = decryption(data['new_password'])
         if IllPassword.objects.filter(password=data["new_password"]).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
         user = User.objects.filter(id=data['user_id']).first()
@@ -146,6 +156,7 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         return data
 
     def save(self, **kwargs):
+        # new_password = decryption(self.validated_data['new_password'])
         user = self.validated_data['user']
         user.set_password(self.validated_data['new_password'])
         user.force_password_change = True
