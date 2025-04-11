@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'drf_spectacular_sidecar',
+    'auditlog',
 
     'core.apps.CoreConfig',
     'accounts.apps.AccountsConfig',
@@ -67,8 +68,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'logs.middleware.RequestMiddleware',  # 📌 اضافه کردن میدلور
-
+    'logs.middleware.RequestMiddleware',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
