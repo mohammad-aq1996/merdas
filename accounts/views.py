@@ -20,6 +20,19 @@ from logs.models import EventLog
 from core.persian_response import get_all_data, get_single_data, create_data, update_data, delete_data
 
 
+class LogoutView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh_token"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # توکن را باطل می‌کند
+            return CustomResponse.success("خروج موفقیت‌آمیز بود.")
+        except Exception as e:
+            return CustomResponse.error("توکن نامعتبر است.")
+
+
 class RegisterView(APIView):
     queryset = User.objects.all()
 

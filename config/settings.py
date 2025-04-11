@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_jalali',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'drf_spectacular_sidecar',
 
@@ -170,6 +171,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=10),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'BLACKLIST_AFTER_ROTATION': True,  # توکن‌های قدیمی را پس از رفرش باطل می‌کند
+    'ROTATE_REFRESH_TOKENS': True,  # در هر رفرش، توکن جدید صادر می‌شود
 }
 
 
