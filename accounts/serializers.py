@@ -12,6 +12,10 @@ from core.models import Settings
 from .encrypt import decryption
 
 
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
 class UserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(validators=[])
 

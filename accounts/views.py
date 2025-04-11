@@ -23,13 +23,16 @@ from core.persian_response import get_all_data, get_single_data, create_data, up
 class LogoutView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(request=LogoutSerializer)
     def post(self, request):
         try:
-            refresh_token = request.data["refresh_token"]
+            refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()  # توکن را باطل می‌کند
+            log_event(request.user, EventLog.EventTypes.LOGOUT, request=request)
             return CustomResponse.success("خروج موفقیت‌آمیز بود.")
         except Exception as e:
+            log_event(request.user, EventLog.EventTypes.LOGOUT, request=request, success=False)
             return CustomResponse.error("توکن نامعتبر است.")
 
 
