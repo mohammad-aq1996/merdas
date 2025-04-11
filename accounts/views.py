@@ -412,3 +412,17 @@ class IllPasswordDetailView(APIView):
             message=delete_data(),
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+class UnblockLoginView(APIView):
+    permission_classes = (IsAdminUser,)
+
+    @extend_schema(request=UsernameSerializer, responses=UsernameSerializer)
+    def post(self, request):
+        username = request.data.get("username")
+        if not username:
+            return CustomResponse.error("نام کاربری را وارد نمایدد")
+
+        LoginAttempt.objects.filter(username=username).delete()
+        return CustomResponse.success("رفع محدودیت کاربر با موفقیت انجام شد")
+

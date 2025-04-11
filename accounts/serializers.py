@@ -48,6 +48,17 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     captcha = serializers.CharField(write_only=True)
 
+    def is_account_locked(self, username, limit=3, lockout_minutes=10):
+        attempts = LoginAttempt.objects.filter(username=username).order_by('-create')[:limit]
+        if len(attempts) < limit:
+            return False
+
+        if all(not attempt.success for attempt in attempts):
+            first_attempt_time = attempts[0].create
+            if now() <= first_attempt_time + timedelta(minutes=lockout_minutes):
+                return True
+        return False
+
     def validate(self, data):
         # username = decryption(data['username'])
         # password = decryption(data['password'])
@@ -79,6 +90,19 @@ class LoginSerializer(serializers.Serializer):
                     break
         if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=account_lockout_time):
             raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
+
+        # login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
+        #
+        # counter = 0
+        #
+        # if login_attempt and not login_attempt[0].success:
+        #     for attempt in login_attempt:
+        #         if not attempt.success:
+        #             counter += 1
+        #         else:
+        #             break
+        # if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=account_lockout_time):
+        #     raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
 
         user = authenticate(username=data['username'], password=data['password'])
 
@@ -245,7 +269,8 @@ class IllPasswordSerializer(serializers.ModelSerializer):
 
 
 
-
+class UsernameSerializer(serializers.Serializer):
+    username = serializers.CharField()
 
 
 

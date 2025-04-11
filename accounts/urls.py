@@ -27,4 +27,6 @@ urlpatterns = [
 
     path('ill/password/', IllPasswordView.as_view(), name='ill-password'),
     path('ill/password/<int:pk>/', IllPasswordDetailView.as_view(), name='ill-password-detail'),
+
+    path('unblock/login/', UnblockLoginView.as_view(), name='unblock-login'),
 ]
