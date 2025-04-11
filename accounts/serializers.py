@@ -81,19 +81,6 @@ class LoginSerializer(serializers.Serializer):
         if self.is_account_locked(data['username'], failed_login_limit, account_lockout_time):
             raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
 
-        # login_attempt = LoginAttempt.objects.filter(username=data['username'])[:failed_login_limit]
-        #
-        # counter = 0
-        #
-        # if login_attempt and not login_attempt[0].success:
-        #     for attempt in login_attempt:
-        #         if not attempt.success:
-        #             counter += 1
-        #         else:
-        #             break
-        # if counter >= failed_login_limit and  now() <= login_attempt[0].create + timedelta(minutes=account_lockout_time):
-        #     raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
-
         user = authenticate(username=data['username'], password=data['password'])
 
         if not user:
@@ -101,6 +88,9 @@ class LoginSerializer(serializers.Serializer):
             log_event(user, EventLog.EventTypes.LOGIN, request=request, success=False)
 
             raise serializers.ValidationError("نام کاربری یا رمز عبور اشتباه است.")
+
+        if user.is_admin_blocked:
+            raise serializers.ValidationError("حساب کاربری شما توسط مدیر سامانه مسدود شده است")
 
         LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=True)
 
@@ -237,7 +227,7 @@ class USerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         # fields = ('username', 'groups', 'is_active')
-        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'groups']
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'groups', 'is_admin_blocked']
 
 
 class LoginAttemptsSerializer(serializers.ModelSerializer):

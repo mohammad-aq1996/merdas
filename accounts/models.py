@@ -68,6 +68,7 @@ class User(AbstractBaseUser):
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)  # نیاز به مدیریت دستی داریم
+    is_admin_blocked = models.BooleanField(default=False)
 
     first_name = models.CharField(max_length=255, blank=True, null=True)
     last_name = models.CharField(max_length=255, blank=True, null=True)
@@ -78,7 +79,7 @@ class User(AbstractBaseUser):
     force_password_change = models.BooleanField(default=True)
     password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
 
-    old_passwords = models.JSONField(default=list)
+    old_passwords = models.JSONField(default=list, blank=True, null=True)
 
     groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
 
