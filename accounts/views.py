@@ -282,9 +282,133 @@ class LoginAttemptsView(APIView):
 
 
 
+class IllUsernameView(APIView):
+    queryset = IllUsername.objects.all()
+
+    @extend_schema(responses=IllUsernameSerializer)
+    def get(self, request):
+        qs = IllUsername.objects.all()
+        serializer = IllUsernameSerializer(qs, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=IllUsernameSerializer, request=IllUsernameSerializer)
+    def post(self, request):
+        serializer = IllUsernameSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(message=create_data(), data=serializer.data)
 
 
+class IllUsernameDetailView(APIView):
+    queryset = IllUsername.objects.all()
+
+    @extend_schema(responses=IllUsernameSerializer)
+    def get(self, request, pk=None):
+        try:
+            instance = IllUsername.objects.get(pk=pk)
+        except IllUsername.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = IllUsernameSerializer(instance=instance)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=IllUsernameSerializer, request=IllUsernameSerializer)
+    def put(self, request, pk=None):
+        try:
+            instance = IllUsername.objects.get(pk=pk)
+        except IllUsername.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = IllUsernameSerializer(instance=instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(message=update_data(), data=serializer.data)
+
+    def delete(self, request, pk=None):
+        try:
+            instance = IllUsername.objects.get(pk=pk)
+        except IllUsername.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        instance.delete()
+        return CustomResponse.success(delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
+class IllPasswordView(APIView):
+    queryset = IllPassword.objects.all()
+
+    @extend_schema(responses=IllPasswordSerializer)
+    def get(self, request):
+        instances = self.queryset.all()
+        serializer = IllPasswordSerializer(instances, many=True)
+        return CustomResponse.success(
+            message=get_all_data(),
+            data=serializer.data
+        )
+
+    @extend_schema(
+        request=IllPasswordSerializer,
+        responses=IllPasswordSerializer,
+    )
+    def post(self, request):
+        serializer = IllPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(
+            message=create_data(),
+            data=serializer.data,
+            status=status.HTTP_201_CREATED
+        )
 
 
+class IllPasswordDetailView(APIView):
+    queryset = IllPassword.objects.all()
+
+    @extend_schema(responses=IllPasswordSerializer,)
+    def get(self, request, pk=None):
+        try:
+            instance = self.queryset.get(pk=pk)
+        except IllPassword.DoesNotExist:
+            return CustomResponse.error(
+                message="یافت نشد",
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = IllPasswordSerializer(instance)
+        return CustomResponse.success(
+            message=get_single_data(),
+            data=serializer.data
+        )
+
+    @extend_schema(
+        request=IllPasswordSerializer,
+        responses=IllPasswordSerializer,
+    )
+    def put(self, request, pk=None):
+        try:
+            instance = self.queryset.get(pk=pk)
+        except IllPassword.DoesNotExist:
+            return CustomResponse.error(
+                message="یافت نشد",
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = IllPasswordSerializer(
+            instance,
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return CustomResponse.success(
+            message=update_data(),
+            data=serializer.data
+        )
+
+    def delete(self, request, pk=None):
+        try:
+            instance = self.queryset.get(pk=pk)
+        except IllPassword.DoesNotExist:
+            return CustomResponse.error(
+                message="یافت نشد",
+                status=status.HTTP_404_NOT_FOUND
+            )
+        instance.delete()
+        return CustomResponse.success(
+            message=delete_data(),
+            status=status.HTTP_204_NO_CONTENT
+        )

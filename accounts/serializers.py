@@ -232,7 +232,16 @@ class LoginAttemptsSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'ip_address', 'success', 'create')
 
 
+class IllUsernameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IllUsername
+        fields = ('id', 'username')
 
+
+class IllPasswordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IllPassword
+        fields = ('id', 'password')
 
 
 

@@ -21,4 +21,10 @@ urlpatterns = [
     path('users/', UserListView.as_view(), name='users'),
     path('user/<int:pk>/', UserDetailView.as_view(), name='users'),
     path('attempt/', LoginAttemptsView.as_view(), name='attempt'),
+
+    path('ill/username/', IllUsernameView.as_view(), name='ill-username'),
+    path('ill/username/<int:pk>/', IllUsernameDetailView.as_view(), name='ill-username-detail'),
+
+    path('ill/password/', IllPasswordView.as_view(), name='ill-password'),
+    path('ill/password/<int:pk>/', IllPasswordDetailView.as_view(), name='ill-password-detail'),
 ]
