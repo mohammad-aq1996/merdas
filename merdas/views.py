@@ -60,6 +60,15 @@ class OrganizationTypeDetailAPI(APIView):
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
+class OrganizationSimpleView(APIView):
+    queryset = Organization.objects.only("id", "name")
+
+    @extend_schema(responses=OrganizationSimpleSerializer)
+    def get(self, request, *args, **kwargs):
+        serializer = OrganizationSimpleSerializer(self.queryset.all(), many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+
 class OrganizationAPI(APIView):
     queryset = Organization.objects.all()
 

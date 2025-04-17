@@ -46,6 +46,12 @@ class OrganizationReadSerializer(serializers.ModelSerializer):
         return obj.parent.name if obj.parent else None
 
 
+class OrganizationSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ("id", "name")
+
+
 class SRSerializer(serializers.ModelSerializer):
     class Meta:
         model = SR
