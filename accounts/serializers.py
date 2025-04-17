@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
-from core.utils import get_anonymous_cache_key
+from core.utils import get_anonymous_cache_key, CustomResponse
 from django.contrib.auth.models import Permission
 from django.utils.timezone import now, timedelta
 from logs.utils import log_event
@@ -67,11 +67,10 @@ class LoginSerializer(serializers.Serializer):
         cached_captcha = cache.get(captcha_key)
 
         if not cached_captcha:
-            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+            raise serializers.ValidationError({"captcha": ["کپچا منقضی شده است، لطفاً دوباره دریافت کنید."]})
 
         if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError("کپچا اشتباه است.")
-
+            raise serializers.ValidationError({"captcha": ["کپچا اشتباه است."]})
         cache.delete(captcha_key)
 
         failed_login_limit = Settings.get_setting("MAX_FAILED_LOGIN_ATTEMPTS", 2)
@@ -79,7 +78,7 @@ class LoginSerializer(serializers.Serializer):
         account_lockout_time = Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2)
 
         if self.is_account_locked(data['username'], failed_login_limit, account_lockout_time):
-            raise serializers.ValidationError("حساب کاربری شما موقتا مسدود شده است")
+            raise serializers.ValidationError({"username": ["حساب کاربری شما موقتا مسدود شده است"]})
 
         user = authenticate(username=data['username'], password=data['password'])
 
@@ -87,10 +86,10 @@ class LoginSerializer(serializers.Serializer):
             LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=False)
             log_event(user, EventLog.EventTypes.LOGIN, request=request, success=False)
 
-            raise serializers.ValidationError("نام کاربری یا رمز عبور اشتباه است.")
+            raise serializers.ValidationError({"username": ["نام کاربری یا رمز عبور اشتباه است."]})
 
         if user.is_admin_blocked:
-            raise serializers.ValidationError("حساب کاربری شما توسط مدیر سامانه مسدود شده است")
+            raise serializers.ValidationError({"username": ["حساب کاربری شما توسط مدیر سامانه مسدود شده است"]})
 
         LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=True)
 
@@ -112,18 +111,18 @@ class ChangePasswordSerializer(serializers.Serializer):
         cached_captcha = cache.get(captcha_key)
 
         if not cached_captcha:
-            raise serializers.ValidationError("کپچا منقضی شده است، لطفاً دوباره دریافت کنید.")
+            raise serializers.ValidationError({"captcha": ["کپچا منقضی شده است، لطفاً دوباره دریافت کنید."]})
 
         if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError("کپچا اشتباه است.")
+            raise serializers.ValidationError({"captcha": ["کپچا اشتباه است."]})
 
         cache.delete(captcha_key)
 
         if IllPassword.objects.filter(password=data["new_password"]).exists():
-            raise serializers.ValidationError("رمز عبور غیرمجاز است")
+            raise serializers.ValidationError({"new_password": ["رمز عبور غیرمجاز است"]})
 
         if not request.user.check_password(data['old_password']):
-            raise serializers.ValidationError("رمز عبور فعلی اشتباه است.")
+            raise serializers.ValidationError({"old_password": ["رمز عبور فعلی اشتباه است."]})
 
         return data
 
@@ -156,11 +155,11 @@ class AdminChangePasswordSerializer(serializers.Serializer):
 
         # new_password = decryption(data['new_password'])
         if IllPassword.objects.filter(password=data["new_password"]).exists():
-            raise serializers.ValidationError("رمز عبور غیرمجاز است")
+            raise serializers.ValidationError({"password": ["رمز عبور غیرمجاز است"]})
         user = User.objects.filter(id=data['user_id']).first()
         data['user'] = user
         if not user:
-            raise serializers.ValidationError("کاربری با این شناسه یافت نشد.")
+            raise serializers.ValidationError({"username", ["کاربری با این شناسه یافت نشد."]})
         return data
 
     def save(self, **kwargs):

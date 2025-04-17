@@ -24,9 +24,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
         name = data.get("name")
         code = data.get("code")
         if Organization.objects.filter(name=name).exists():
-            raise serializers.ValidationError("سازمان با این اسم از قبل وجود دارد")
+            raise serializers.ValidationError({"name": ["سازمان با این اسم از قبل وجود دارد"]})
         if Organization.objects.filter(code=code).exists():
-            raise serializers.ValidationError("سازمان با این کد از قبل وجود دارد")
+            raise serializers.ValidationError({"code": ["سازمان با این کد از قبل وجود دارد"]})
         return data
 
 
@@ -86,12 +86,12 @@ class StandardCreateSerializer(serializers.ModelSerializer):
         fr_list = data.get('fr', [])  # لیست FRهای ارسالی
 
         if not fr_list:
-            raise serializers.ValidationError("حداقل یک FR باید انتخاب شود.")
+            raise serializers.ValidationError({"fr": ["حداقل یک FR باید انتخاب شود."]})
 
         total_weight = sum(fr.weight for fr in fr_list)
 
         if total_weight != 100:
-            raise serializers.ValidationError("جمع وزن‌های FR باید دقیقاً ۱۰۰ باشد.")
+            raise serializers.ValidationError({"fr": ["جمع وزن‌های FR باید دقیقاً ۱۰۰ باشد."]})
 
         return data
 
