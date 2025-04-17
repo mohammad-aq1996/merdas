@@ -124,7 +124,19 @@ class PermissionView(APIView):
 
     @extend_schema(request=PermissionSerializer, responses=PermissionSerializer)
     def get(self, request):
-        permissions = Permission.objects.all()
+        EXCLUDED_MODELS = [
+            "session",
+            "contenttype",
+            "logentry",
+            "group",
+            "permission",
+            "admin",
+            "blacklistedtoken",
+            "outstandingtoken",
+        ]
+        permissions = Permission.objects.exclude(
+            content_type__model__in=EXCLUDED_MODELS
+        )
         serializer = PermissionSerializer(permissions, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
