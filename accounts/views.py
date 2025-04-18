@@ -39,12 +39,13 @@ class LogoutView(APIView):
 class RegisterView(APIView):
     queryset = User.objects.all()
 
-    @extend_schema(request=UserSerializer, responses=UserSerializer)
+    @extend_schema(request=UserSerializer, responses=UserGetSerializer)
     def post(self, request):
         serializer = UserSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return CustomResponse.success("ثبت نام کاربر جدید با موفقیت انجام شد", data=serializer.data, status=status.HTTP_201_CREATED)
+        instance = serializer.save()
+        output_serializer = UserGetSerializer(instance)
+        return CustomResponse.success("ثبت نام کاربر جدید با موفقیت انجام شد", data=output_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
@@ -265,7 +266,7 @@ class UserDetailView(APIView):
         serializer = UserGetSerializer(user)
         return CustomResponse.success(message=get_single_data(), data=serializer.data)
 
-    @extend_schema(request=USerUpdateSerializer, responses=USerUpdateSerializer)
+    @extend_schema(request=USerUpdateSerializer, responses=UserGetSerializer)
     def put(self, request, pk=None):
         try:
             instance = User.objects.get(pk=pk)
@@ -273,8 +274,9 @@ class UserDetailView(APIView):
             return CustomResponse.error("کاربر مورد نظر وجود ندارد", status=status.HTTP_404_NOT_FOUND)
         serializer = USerUpdateSerializer(instance=instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return CustomResponse.success(message=update_data(), data=serializer.data)
+        serializer = serializer.save()
+        output_serializer = UserGetSerializer(serializer)
+        return CustomResponse.success(message=update_data(), data=output_serializer.data)
 
     def delete(self, request, pk=None):
         try:
