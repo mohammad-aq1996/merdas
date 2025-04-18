@@ -6,6 +6,5 @@ class AccountsConfig(AppConfig):
     name = 'accounts'
 
     def ready(self):
-        import accounts.signals
         from .auditlog_registry import register_auditlog_models
         register_auditlog_models()
