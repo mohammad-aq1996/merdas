@@ -25,7 +25,7 @@ class UserGroup(models.Model):
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, first_name, last_name, national_number, organization, phone_number=None, password=None):
+    def create_user(self, username, first_name, last_name, national_number, organization, group, phone_number=None, password=None):
         if not username:
             raise ValueError('نام کاربری ضرور است')
         if not first_name:
@@ -36,6 +36,8 @@ class UserManager(BaseUserManager):
             raise ValueError('کد ملی ضرور است')
         if not organization:
             raise ValueError('سازمان ضرور است')
+        if not group:
+            raise ValueError('گروه ضرور است')
 
         user = self.model(
             username=username,
@@ -43,6 +45,7 @@ class UserManager(BaseUserManager):
             last_name=last_name,
             national_number=national_number,
             organization=organization,
+            group=group,
             phone_number=phone_number
         )
         user.set_password(password)
