@@ -72,6 +72,8 @@ class FRSerializer(serializers.ModelSerializer):
 
 
 class FRCreateSerializer(serializers.ModelSerializer):
+    sr = SRSerializer(many=True, write_only=True)
+
     class Meta:
         model = FR
         fields = ('title', 'weight', 'description', 'sr')
@@ -86,6 +88,8 @@ class StandardSerializer(serializers.ModelSerializer):
 
 
 class StandardCreateSerializer(serializers.ModelSerializer):
+    fr = FRSerializer(many=True, write_only=True)
+
     class Meta:
         model = Standard
         fields = ('title', 'fr')
@@ -99,12 +103,29 @@ class StandardCreateSerializer(serializers.ModelSerializer):
         if not fr_list:
             raise serializers.ValidationError({"fr": ["حداقل یک FR باید انتخاب شود."]})
 
-        total_weight = sum(fr.weight for fr in fr_list)
+        total_weight = sum(fr['weight'] for fr in fr_list)
 
         if total_weight != 100:
             raise serializers.ValidationError({"fr": ["جمع وزن‌های FR باید دقیقاً ۱۰۰ باشد."]})
 
         return data
+
+    def create(self, validated_data):
+        frs_data = validated_data.pop('fr')
+        standard = Standard.objects.create(**validated_data)
+
+        for fr_data in frs_data:
+            srs_data = fr_data.pop('sr')
+            fr = FR.objects.create(**fr_data)
+
+            for sr_data in srs_data:
+                sr, _ = SR.objects.get_or_create(**sr_data)
+                fr.sr.add(sr)
+
+            fr.save()
+            standard.fr.add(fr)
+
+        return standard
 
 
 class QuestionSerializer(serializers.ModelSerializer):
