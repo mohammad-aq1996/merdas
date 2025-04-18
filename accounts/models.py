@@ -113,7 +113,7 @@ class User(AbstractBaseUser):
         return any(perm.startswith(f"{app_label}.") for perm in self.get_all_permissions())
 
     def password_expired(self):
-        expire_days = Settings.get_setting("PASSWORD_EXPIRATION_DAYS", default=15)
+        expire_days = int(Settings.get_setting("PASSWORD_EXPIRATION_DAYS", default=15))
         return now() - self.password_changed_at > timedelta(days=expire_days)
 
     def must_change_password(self):
@@ -125,7 +125,7 @@ class User(AbstractBaseUser):
         return any(check_password(new_password, old_pwd) for old_pwd in self.old_passwords)
 
     def update_password(self, new_password):
-        max_old_passwords = Settings.get_setting("PASSWORD_HISTORY_LIMIT", default=5)
+        max_old_passwords = int(Settings.get_setting("PASSWORD_HISTORY_LIMIT", default=5))
         """ ذخیره پسورد جدید و حذف قدیمی‌ها از لیست """
         if self.check_old_passwords(new_password):
             raise ValueError(f"استفاده از {max_old_passwords} رمزعبور قبلی مجاز نمیباشد")
