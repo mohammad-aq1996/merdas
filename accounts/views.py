@@ -200,12 +200,13 @@ class GroupView(APIView):
         serializer = GroupSerializer(groups, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
-    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupCreateUpdateSerializer)
+    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupSerializer)
     def post(self, request):
         serializer = GroupCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return CustomResponse.success(create_data(), status=status.HTTP_201_CREATED)
+        instance = serializer.save()
+        output_serializer = GroupSerializer(instance)
+        return CustomResponse.success(create_data(), data=output_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class GroupDetailView(APIView):
@@ -221,7 +222,7 @@ class GroupDetailView(APIView):
         serializer = GroupSerializer(group)
         return CustomResponse.success(message=get_single_data(), data=serializer.data)
 
-    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupCreateUpdateSerializer)
+    @extend_schema(request=GroupCreateUpdateSerializer, responses=GroupSerializer)
     def put(self, request, pk=None):
         try:
             instance = UserGroup.objects.get(pk=pk)
@@ -229,8 +230,9 @@ class GroupDetailView(APIView):
             return CustomResponse.error(message="گروه مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = GroupCreateUpdateSerializer(instance=instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return CustomResponse.success(message=update_data(), data=serializer.data)
+        serializer = serializer.save()
+        output_serializer = GroupSerializer(serializer)
+        return CustomResponse.success(message=update_data(), data=output_serializer.data)
 
     def delete(self, request, pk=None):
         try:
