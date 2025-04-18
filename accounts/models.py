@@ -20,7 +20,7 @@ class Role(models.Model):
 class UserGroup(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    organization = models.ForeignKey("merdas.Organization", on_delete=models.PROTECT)
+    organization = models.ForeignKey("merdas.Organization", on_delete=models.PROTECT, related_name="groups")
     roles = models.ManyToManyField(Role, related_name="groups")
 
 
@@ -75,13 +75,14 @@ class User(AbstractBaseUser):
     national_number = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey("merdas.Organization", on_delete=models.PROTECT, blank=True, null=True)
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, blank=True, null=True, related_name="users")
 
     force_password_change = models.BooleanField(default=True)
     password_changed_at = models.DateTimeField(auto_now_add=True)  # زمان آخرین تغییر پسورد
 
     old_passwords = models.JSONField(default=list, blank=True, null=True)
 
-    groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
+    # groups = models.ManyToManyField(UserGroup, related_name="users", blank=True)
 
     objects = UserManager()
 
