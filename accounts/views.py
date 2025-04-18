@@ -64,7 +64,7 @@ class LoginView(APIView):
                                             'access': str(refresh.access_token),
                                             'refresh': str(refresh),
                                             'must_change_password': user.must_change_password(),
-                                            'permissions': str(user.group.roles.all()[0].permissions.all()) if user.group else None
+                                            'permissions': str([obj.code_name for obj in user.group.roles.all()[0].permissions.all()]) if user.group else None
                                         }
                                       )
 
