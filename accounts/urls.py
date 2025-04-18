@@ -29,4 +29,5 @@ urlpatterns = [
     path('ill/password/<int:pk>/', IllPasswordDetailView.as_view(), name='ill-password-detail'),
 
     path('unblock/login/', UnblockLoginView.as_view(), name='unblock-login'),
+    path('org-groups/<int:pk>/', OrgGroupsListView.as_view(), name='org-groups'),
 ]

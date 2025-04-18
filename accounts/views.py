@@ -18,6 +18,7 @@ from .serializers import *
 from logs.utils import log_event
 from logs.models import EventLog
 from core.persian_response import get_all_data, get_single_data, create_data, update_data, delete_data
+from merdas.models import Organization
 
 
 class LogoutView(APIView):
@@ -442,3 +443,15 @@ class UnblockLoginView(APIView):
         LoginAttempt.objects.filter(username=username).delete()
         return CustomResponse.success("رفع محدودیت کاربر با موفقیت انجام شد")
 
+
+class OrgGroupsListView(APIView):
+    queryset = UserGroup.objects.all()
+
+    def get(self, request, pk):
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        qs = organization.groups.all()
+        serializer = GroupSerializer(qs, many=True)
+        return CustomResponse.success(get_all_data(), data=serializer.data)
