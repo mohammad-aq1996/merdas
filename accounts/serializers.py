@@ -222,7 +222,7 @@ class UserGetSerializer(serializers.ModelSerializer):
         return obj.organization.name if obj.organization else None
 
     def get_group(self, obj):
-        return obj.group.name
+        return obj.group.name if obj.group else None
 
 
 class USerUpdateSerializer(serializers.ModelSerializer):
