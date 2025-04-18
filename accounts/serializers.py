@@ -73,9 +73,9 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({"captcha": ["کپچا اشتباه است."]})
         cache.delete(captcha_key)
 
-        failed_login_limit = Settings.get_setting("MAX_FAILED_LOGIN_ATTEMPTS", 2)
+        failed_login_limit = int(Settings.get_setting("MAX_FAILED_LOGIN_ATTEMPTS", 2))
 
-        account_lockout_time = Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2)
+        account_lockout_time = int(Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2))
 
         if self.is_account_locked(data['username'], failed_login_limit, account_lockout_time):
             raise serializers.ValidationError({"username": ["حساب کاربری شما موقتا مسدود شده است"]})
