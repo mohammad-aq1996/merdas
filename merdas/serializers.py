@@ -23,12 +23,17 @@ class OrganizationSerializer(serializers.ModelSerializer):
     def validate(self, data):
         name = data.get("name")
         code = data.get("code")
-        if Organization.objects.filter(name=name).exists():
-            raise serializers.ValidationError({"name": ["سازمان با این اسم از قبل وجود دارد"]})
-        if Organization.objects.filter(code=code).exists():
-            raise serializers.ValidationError({"code": ["سازمان با این کد از قبل وجود دارد"]})
-        return data
 
+        # exclude خود instance هنگام آپدیت
+        org_qs = Organization.objects.exclude(pk=self.instance.pk) if self.instance else Organization.objects.all()
+
+        if org_qs.filter(name=name).exists():
+            raise serializers.ValidationError({"name": ["سازمان با این اسم از قبل وجود دارد"]})
+
+        if org_qs.filter(code=code).exists():
+            raise serializers.ValidationError({"code": ["سازمان با این کد از قبل وجود دارد"]})
+
+        return data
 
 class OrganizationReadSerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
