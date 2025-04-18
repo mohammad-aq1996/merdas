@@ -83,12 +83,13 @@ class OrganizationAPI(APIView):
         serializer = OrganizationReadSerializer(organizations, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
-    @extend_schema(responses=OrganizationSerializer, request=OrganizationSerializer)
+    @extend_schema(responses=OrganizationSerializer, request=OrganizationReadSerializer)
     def post(self, request, *args, **kwargs):
         serializer = OrganizationSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return CustomResponse.success(create_data(), data=serializer.data, status=status.HTTP_201_CREATED)
+            instance = serializer.save()
+            output_serializer = OrganizationReadSerializer(instance)
+            return CustomResponse.success(create_data(), data=output_serializer.data, status=status.HTTP_201_CREATED)
         return CustomResponse.error("ذخیره سازمان ناموفق بود", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -104,7 +105,7 @@ class OrganizationDetailAPI(APIView):
         serializer = OrganizationReadSerializer(organization)
         return CustomResponse.success(get_single_data(), data=serializer.data)
 
-    @extend_schema(responses=OrganizationSerializer, request=OrganizationSerializer)
+    @extend_schema(responses=OrganizationSerializer, request=OrganizationReadSerializer)
     def put(self, request, org_id, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=org_id)
@@ -112,8 +113,9 @@ class OrganizationDetailAPI(APIView):
             return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationSerializer(organization, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return CustomResponse.success(update_data(), data=serializer.data)
+            serializer = serializer.save()
+            output_serializer = OrganizationReadSerializer(serializer)
+            return CustomResponse.success(update_data(), data=output_serializer.data)
         return CustomResponse.error("بروزرسانی ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, org_id, *args, **kwargs):
