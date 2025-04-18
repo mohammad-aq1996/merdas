@@ -95,6 +95,9 @@ class User(AbstractBaseUser):
     def __str__(self):
         return self.username
 
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
     def get_all_permissions(self):
         if self.is_superuser:
             return set(Permission.objects.values_list("codename", flat=True))  # همه پرمیژن‌ها

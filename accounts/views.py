@@ -64,7 +64,10 @@ class LoginView(APIView):
                                             'access': str(refresh.access_token),
                                             'refresh': str(refresh),
                                             'must_change_password': user.must_change_password(),
-                                            'permissions': str([obj.codename for obj in user.group.roles.all()[0].permissions.all()]) if user.group else None
+                                            'permissions': str([obj.codename for obj in user.group.roles.all()[0].permissions.all()]) if user.group else None,
+                                            'organization': str(user.organization.name) if user.organization else None,
+                                            'fullname': str(user.get_full_name()) if user.get_full_name() else None,
+                                            'is_admin': str(True) if user.is_admin or user.is_superuser else None,
                                         }
                                       )
 
