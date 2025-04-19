@@ -296,8 +296,9 @@ class QuestionListCreateView(APIView):
     def post(self, request):
         serializer = QuestionCreateSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return CustomResponse.success(message=create_data(), data=serializer.data)
+            serializer = serializer.save()
+            output_serializer = QuestionSerializer(serializer)
+            return CustomResponse.success(message=create_data(), data=output_serializer.data)
         return CustomResponse.error("ناموفق", errors=serializer.errors)
 
 
@@ -321,8 +322,9 @@ class QuestionDetailView(APIView):
             return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = QuestionCreateSerializer(question, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return CustomResponse.success(message=update_data(), data=serializer.data)
+            serializer = serializer.save()
+            output_serializer = QuestionSerializer(serializer)
+            return CustomResponse.success(message=update_data(), data=output_serializer.data)
         return CustomResponse.error("ناموفق", errors=serializer.errors)
 
     def delete(self, request, pk):
@@ -405,18 +407,3 @@ class SubmitAssessmentResponsesAPIView(APIView):
         serializer = AssessmentQuestionResponseSerializer(responses, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
-
-class FR_SR_CombinedView(APIView):
-    queryseet = SR.objects.all()
-
-    def get(self, request):
-        fr_queryset = FR.objects.all()
-        sr_queryset = SR.objects.all()
-
-        fr_data = FRSerializer(fr_queryset, many=True).data
-        sr_data = SRSerializer(sr_queryset, many=True).data
-
-        return Response({
-            "fr_list": fr_data,
-            "sr_list": sr_data
-        })
