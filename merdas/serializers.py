@@ -127,6 +127,68 @@ class StandardCreateSerializer(serializers.ModelSerializer):
 
         return standard
 
+    def update(self, instance, validated_data):
+        frs_data = validated_data.pop('fr', None)
+
+        instance.title = validated_data.get('title', instance.title)
+        instance.save()
+
+        if frs_data is not None:
+            existing_frs = list(instance.fr.all())
+            existing_frs_dict = {fr.id: fr for fr in existing_frs}
+            updated_fr_ids = []
+
+            for fr_data in frs_data:
+                fr_id = fr_data.get('id')
+                srs_data = fr_data.pop('sr', [])
+
+                if fr_id and fr_id in existing_frs_dict:
+                    # Update existing FR
+                    fr = existing_frs_dict[fr_id]
+                    fr.title = fr_data.get('title', fr.title)
+                    fr.weight = fr_data.get('weight', fr.weight)
+                    fr.save()
+                else:
+                    # Create new FR
+                    fr = FR.objects.create(**fr_data)
+                    instance.fr.add(fr)
+
+                updated_fr_ids.append(fr.id)
+
+                # Handle SRs
+                existing_srs = list(fr.sr.all())
+                existing_srs_dict = {sr.id: sr for sr in existing_srs}
+                updated_sr_ids = []
+
+                for sr_data in srs_data:
+                    sr_id = sr_data.get('id')
+                    if sr_id and sr_id in existing_srs_dict:
+                        # Update existing SR
+                        sr = existing_srs_dict[sr_id]
+                        for attr, value in sr_data.items():
+                            setattr(sr, attr, value)
+                        sr.save()
+                    else:
+                        # Create new SR
+                        sr, _ = SR.objects.get_or_create(**sr_data)
+
+                    fr.sr.add(sr)
+                    if sr.id:
+                        updated_sr_ids.append(sr.id)
+
+                # Remove SRs not in the update list
+                for sr in existing_srs:
+                    if sr.id not in updated_sr_ids:
+                        fr.sr.remove(sr)
+
+            # Remove FRs not in the update list
+            for fr in existing_frs:
+                if fr.id not in updated_fr_ids:
+                    instance.fr.remove(fr)
+                    fr.delete()
+
+        return instance
+
 
 class QuestionSerializer(serializers.ModelSerializer):
     standard = StandardSerializer()
