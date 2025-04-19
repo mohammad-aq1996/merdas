@@ -67,6 +67,8 @@ class Question(BaseModel):
 
     title = models.CharField(max_length=2048)
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name="questions")
+    fr = models.ForeignKey(FR, related_name="questions", on_delete=models.CASCADE)
+    sr = models.ForeignKey(SR, related_name="questions", on_delete=models.CASCADE)
     question_level = models.CharField(choices=QuestionLevel.choices, max_length=20)
     description = models.TextField(blank=True, null=True)
 

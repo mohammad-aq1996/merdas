@@ -405,3 +405,18 @@ class SubmitAssessmentResponsesAPIView(APIView):
         serializer = AssessmentQuestionResponseSerializer(responses, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
+
+class FR_SR_CombinedView(APIView):
+    queryseet = SR.objects.all()
+
+    def get(self, request):
+        fr_queryset = FR.objects.all()
+        sr_queryset = SR.objects.all()
+
+        fr_data = FRSerializer(fr_queryset, many=True).data
+        sr_data = SRSerializer(sr_queryset, many=True).data
+
+        return Response({
+            "fr_list": fr_data,
+            "sr_list": sr_data
+        })

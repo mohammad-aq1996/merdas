@@ -192,16 +192,18 @@ class StandardCreateSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     standard = StandardSerializer()
+    fr = FRSerializer()
+    sr = SRSerializer()
 
     class Meta:
         model = Question
-        fields = ('id', 'title', 'description', 'standard', 'question_level')
+        fields = ('id', 'title', 'description', 'standard', 'question_level', 'fr', 'sr')
 
 
 class QuestionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
-        fields = ('title', 'description', 'standard', 'question_level')
+        fields = ('title', 'description', 'standard', 'question_level', 'sr', 'fr')
 
 
 

@@ -26,5 +26,6 @@ urlpatterns = [
 
     path('response/', SubmitAssessmentResponsesAPIView.as_view(), name="response-list"),
 
+    path('fr-sr-combined/', FR_SR_CombinedView.as_view(), name='fr-sr-combined'),
 
 ]
