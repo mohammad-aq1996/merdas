@@ -8,6 +8,7 @@ from .serializers import *
 from core.utils import CustomResponse
 from drf_spectacular.utils import extend_schema
 from core.persian_response import *
+from collections import defaultdict
 
 
 class OrganizationTypeAPI(APIView):
@@ -334,6 +335,59 @@ class QuestionDetailView(APIView):
             return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
         question.delete()
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
+
+
+class QuestionsGroupedByFRSRView(APIView):
+    ueryset = Question.objects.all()
+
+    LEVEL_ORDER = {
+        "low": 0,
+        "moderate": 1,
+        "high": 2,
+        "very_high": 3,
+    }
+
+    def post(self, request):
+        standard_id = request.data.get("standard_id")
+        overall_sal = request.data.get("overall_sal")
+
+        if not standard_id or not overall_sal:
+            return CustomResponse.error("standard_id and overall_sal are required")
+
+        level_threshold = self.LEVEL_ORDER.get(overall_sal)
+        if level_threshold is None:
+            return CustomResponse.error("Invalid overall_sal value")
+
+        allowed_levels = [level for level, rank in self.LEVEL_ORDER.items() if rank <= level_threshold]
+
+        questions = Question.objects.filter(
+            sr__fr__standards__id=standard_id,
+            question_level__in=allowed_levels
+        ).select_related('fr', 'sr').distinct()
+
+        # گروه‌بندی: FR -> SR -> سوال‌ها
+        fr_map = defaultdict(lambda: defaultdict(list))
+
+        for q in questions:
+            fr_map[(q.fr.id, q.fr.title)][(q.sr.id, q.sr.title)].append(q)
+
+        # تبدیل به ساختار JSON
+        result = []
+        for (fr_id, fr_title), sr_dict in fr_map.items():
+            sr_list = []
+            for (sr_id, sr_title), q_list in sr_dict.items():
+                sr_list.append({
+                    "sr_id": sr_id,
+                    "sr": sr_title,
+                    "questions": QuestionSerializer(q_list, many=True).data
+                })
+            result.append({
+                "fr_id": fr_id,
+                "fr": fr_title,
+                "srs": sr_list
+            })
+
+        return CustomResponse.success(result)
 
 
 class AssessmentListCreateView(APIView):

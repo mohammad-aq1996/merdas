@@ -26,5 +26,5 @@ urlpatterns = [
 
     path('response/', SubmitAssessmentResponsesAPIView.as_view(), name="response-list"),
 
-
+    path('questions-by-fr-sr/', QuestionsGroupedByFRSRView.as_view(), name="questions-by-fr-sr"),
 ]
