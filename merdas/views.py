@@ -338,7 +338,7 @@ class QuestionDetailView(APIView):
 
 
 class QuestionsGroupedByFRSRView(APIView):
-    ueryset = Question.objects.all()
+    queryset = Question.objects.all()
 
     LEVEL_ORDER = {
         "low": 0,
