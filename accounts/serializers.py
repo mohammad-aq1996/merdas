@@ -25,13 +25,13 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_password(self, password):
-        # password = decryption(password)
+        password = decryption(password)
         if IllPassword.objects.filter(password=password).exists():
             raise serializers.ValidationError("رمز عبور غیرمجاز است")
         return password
 
     def validate_username(self, value):
-        # username = decryption(value)
+        value = decryption(value)
         if IllUsername.objects.filter(username=value).exists():
             raise serializers.ValidationError('نام کاربری غیرمجاز است')
         if User.objects.filter(username=value).exists():
@@ -39,7 +39,9 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+        username = decryption(validated_data.pop('username'))
+        password = decryption(validated_data.pop('password'))
+        user = User.objects.create_user(username=username, password=password, **validated_data)
         return user
 
 
@@ -60,8 +62,8 @@ class LoginSerializer(serializers.Serializer):
         return False
 
     def validate(self, data):
-        # username = decryption(data['username'])
-        # password = decryption(data['password'])
+        username = decryption(data['username'])
+        password = decryption(data['password'])
         request = self.context.get("request")
         captcha_key = get_anonymous_cache_key(request)
         cached_captcha = cache.get(captcha_key)
@@ -77,13 +79,13 @@ class LoginSerializer(serializers.Serializer):
 
         account_lockout_time = int(Settings.get_setting("ACCOUNT_LOCKOUT_TIME", 2))
 
-        if self.is_account_locked(data['username'], failed_login_limit, account_lockout_time):
+        if self.is_account_locked(username, failed_login_limit, account_lockout_time):
             raise serializers.ValidationError({"username": ["حساب کاربری شما موقتا مسدود شده است"]})
 
-        user = authenticate(username=data['username'], password=data['password'])
+        user = authenticate(username=username, password=password)
 
         if not user:
-            LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=False)
+            LoginAttempt.objects.create(username=username, ip_address=request.META['REMOTE_ADDR'], success=False)
             log_event(user, EventLog.EventTypes.LOGIN, request=request, success=False)
 
             raise serializers.ValidationError({"username": ["نام کاربری یا رمز عبور اشتباه است."]})
@@ -91,7 +93,7 @@ class LoginSerializer(serializers.Serializer):
         if user.is_admin_blocked:
             raise serializers.ValidationError({"username": ["حساب کاربری شما توسط مدیر سامانه مسدود شده است"]})
 
-        LoginAttempt.objects.create(username=data['username'], ip_address=request.META['REMOTE_ADDR'], success=True)
+        LoginAttempt.objects.create(username=username, ip_address=request.META['REMOTE_ADDR'], success=True)
 
         log_event(user, EventLog.EventTypes.LOGIN, request=request)
 
@@ -104,8 +106,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     captcha = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        # old_password = decryption(data['old_password'])
-        # new_password = decryption(data['new_password'])
+        old_password = decryption(data['old_password'])
+        new_password = decryption(data['new_password'])
         request = self.context.get("request")
         captcha_key = get_anonymous_cache_key(request)
         cached_captcha = cache.get(captcha_key)
@@ -118,16 +120,16 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         cache.delete(captcha_key)
 
-        if IllPassword.objects.filter(password=data["new_password"]).exists():
+        if IllPassword.objects.filter(password=new_password).exists():
             raise serializers.ValidationError({"new_password": ["رمز عبور غیرمجاز است"]})
 
-        if not request.user.check_password(data['old_password']):
+        if not request.user.check_password(old_password):
             raise serializers.ValidationError({"old_password": ["رمز عبور فعلی اشتباه است."]})
 
         return data
 
     def validate_new_password(self, value):
-        # value = decryption(value)
+        value = decryption(value)
         validate_password(value)
         return value
 
@@ -153,8 +155,10 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         #     raise serializers.ValidationError("کپچا اشتباه است.")
         # cache.delete(captcha_key)
 
-        # new_password = decryption(data['new_password'])
-        if IllPassword.objects.filter(password=data["new_password"]).exists():
+        # new_password = decryption(new_password)
+        new_password = decryption(data['new_password'])
+
+        if IllPassword.objects.filter(password=new_password).exists():
             raise serializers.ValidationError({"password": ["رمز عبور غیرمجاز است"]})
         user = User.objects.filter(id=data['user_id']).first()
         data['user'] = user
@@ -163,9 +167,9 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         return data
 
     def save(self, **kwargs):
-        # new_password = decryption(self.validated_data['new_password'])
+        new_password = decryption(self.validated_data['new_password'])
         user = self.validated_data['user']
-        user.set_password(self.validated_data['new_password'])
+        user.set_password(new_password)
         user.force_password_change = True
         user.save()
         return user
