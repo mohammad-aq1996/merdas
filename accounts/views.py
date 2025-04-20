@@ -459,3 +459,24 @@ class OrgGroupsListView(APIView):
         qs = organization.groups.all()
         serializer = GroupSerializer(qs, many=True)
         return CustomResponse.success(get_all_data(), data=serializer.data)
+
+
+class SameGroupUsersView(APIView):
+    queryset = User.objects.all()
+
+    @extend_schema(responses=SimpleUserSerializer)
+    def get(self, request):
+        user = request.user
+        qs = User.objects.filter(group=user.group).exclude(id=user.id).only("id", "username")
+        serializer = SimpleUserSerializer(qs, many=True)
+        return CustomResponse.success(get_single_data(), data=serializer.data)
+
+
+
+
+
+
+
+
+
+

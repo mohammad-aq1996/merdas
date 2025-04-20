@@ -63,15 +63,15 @@ class LoginSerializer(serializers.Serializer):
         # username = decryption(data['username'])
         # password = decryption(data['password'])
         request = self.context.get("request")
-        captcha_key = get_anonymous_cache_key(request)
-        cached_captcha = cache.get(captcha_key)
-
-        if not cached_captcha:
-            raise serializers.ValidationError({"captcha": ["کپچا منقضی شده است، لطفاً دوباره دریافت کنید."]})
-
-        if data["captcha"] != cached_captcha:
-            raise serializers.ValidationError({"captcha": ["کپچا اشتباه است."]})
-        cache.delete(captcha_key)
+        # captcha_key = get_anonymous_cache_key(request)
+        # cached_captcha = cache.get(captcha_key)
+        #
+        # if not cached_captcha:
+        #     raise serializers.ValidationError({"captcha": ["کپچا منقضی شده است، لطفاً دوباره دریافت کنید."]})
+        #
+        # if data["captcha"] != cached_captcha:
+        #     raise serializers.ValidationError({"captcha": ["کپچا اشتباه است."]})
+        # cache.delete(captcha_key)
 
         failed_login_limit = int(Settings.get_setting("MAX_FAILED_LOGIN_ATTEMPTS", 2))
 
@@ -253,6 +253,12 @@ class IllPasswordSerializer(serializers.ModelSerializer):
 
 class UsernameSerializer(serializers.Serializer):
     username = serializers.CharField()
+
+
+class SimpleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username')
 
 
 
