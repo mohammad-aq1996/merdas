@@ -341,12 +341,13 @@ class QuestionsGroupedByFRSRView(APIView):
     queryset = Question.objects.all()
 
     LEVEL_ORDER = {
-        "low": 0,
-        "moderate": 1,
-        "high": 2,
-        "very_high": 3,
+        "Low": 0,
+        "Moderate": 1,
+        "High": 2,
+        "Very_high": 3,
     }
 
+    @extend_schema(request=QuestionFRSRSerializer)
     def post(self, request):
         standard_id = request.data.get("standard_id")
         overall_sal = request.data.get("overall_sal")
@@ -361,9 +362,9 @@ class QuestionsGroupedByFRSRView(APIView):
         allowed_levels = [level for level, rank in self.LEVEL_ORDER.items() if rank <= level_threshold]
 
         questions = Question.objects.filter(
-            sr__fr__standards__id=standard_id,
+            standard_id=standard_id,
             question_level__in=allowed_levels
-        ).select_related('fr', 'sr').distinct()
+        ).select_related('fr', 'sr')
 
         # گروه‌بندی: FR -> SR -> سوال‌ها
         fr_map = defaultdict(lambda: defaultdict(list))

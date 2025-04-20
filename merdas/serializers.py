@@ -206,6 +206,10 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
         fields = ('title', 'description', 'standard', 'question_level', 'sr', 'fr')
 
 
+class QuestionFRSRSerializer(serializers.Serializer):
+    standard_id = serializers.IntegerField()
+    overall_sal = serializers.CharField()
+
 
 class AssessmentSerializer(serializers.ModelSerializer):
     contacts = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
