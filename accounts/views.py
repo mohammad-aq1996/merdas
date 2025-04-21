@@ -12,7 +12,7 @@ import string
 import io
 from django.core.cache import cache
 from django.http import HttpResponse
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from core.utils import get_anonymous_cache_key, CustomResponse
 from .serializers import *
 from logs.utils import log_event
@@ -103,26 +103,43 @@ class GenerateCaptchaView(APIView):
     permission_classes = (AllowAny, )
 
     def get(self, request):
-        captcha_text = ''.join(random.choices((string.digits + string.ascii_lowercase) , k=7))
-
+        captcha_text = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
         captcha_key = get_anonymous_cache_key(request)
         cache.set(captcha_key, captcha_text, timeout=300)
-        img = Image.new('RGB', (150, 40), color=(255, 255, 255))
+
+        img = Image.new('RGB', (150, 50), color=(255, 255, 255))
         draw = ImageDraw.Draw(img)
 
         try:
-            font = ImageFont.truetype("DejaVuSans.ttf", 25)
+            font = ImageFont.truetype("DejaVuSans.ttf", 30)
         except IOError:
             font = ImageFont.load_default()
 
-        draw.text((20, 5), captcha_text, font=font, fill=(0, 0, 0))
+        # کشیدن کاراکترها با کمی جابجایی و چرخش
+        for i, char in enumerate(captcha_text):
+            x = 10 + i * 20 + random.randint(-2, 2)
+            y = random.randint(5, 15)
+            draw.text((x, y), char, font=font, fill=(0, 0, 0))
 
-        # ذخیره تصویر در حافظه
+        # نویز ساده: چند خط
+        for _ in range(3):
+            x1 = random.randint(0, 150)
+            y1 = random.randint(0, 50)
+            x2 = random.randint(0, 150)
+            y2 = random.randint(0, 50)
+            draw.line(((x1, y1), (x2, y2)), fill=(200, 200, 200), width=1)
+
+        # نویز نقطه‌ای
+        for _ in range(100):
+            x = random.randint(0, 150)
+            y = random.randint(0, 50)
+            draw.point((x, y), fill=(100, 100, 100))
+
         img_io = io.BytesIO()
         img.save(img_io, 'PNG')
         img_io.seek(0)
 
-        return HttpResponse(img_io, content_type="image/png")
+        return HttpResponse(img_io, content_type='image/png')
 
 
 class PermissionView(APIView):
