@@ -108,7 +108,7 @@ class Assessment(BaseModel):
         return self.name
 
 
-class QuestionResponse(BaseModel):
+class Answer(BaseModel):
     class AnswerChoices(models.TextChoices):
         YES = 'yes', 'Yes'
         NO = 'no', 'No'
@@ -127,9 +127,9 @@ class QuestionResponse(BaseModel):
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def clean(self):
-        if self.answer == self.AnswerChoices.SUBSTITUTE and not self.substitute_text:
-            raise ValidationError("Substitute answer requires a substitute_text.")
+    class Meta:
+        unique_together = ('assessment', 'question')
+
 
 
 

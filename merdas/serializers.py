@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import (Organization, OrganizationType, SR, Standard, FR, Question)
+from .models import (Organization, OrganizationType, SR, Standard, FR, Question, Answer)
 # from .models import Assessment, AssessmentQuestionResponse
 from django.contrib.auth import get_user_model
 
@@ -212,44 +212,125 @@ class QuestionFRSRSerializer(serializers.Serializer):
     overall_sal = serializers.CharField()
 
 
-# class AssessmentSerializer(serializers.ModelSerializer):
-#     contacts = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
-#     created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
-#
-#     class Meta:
-#         model = Assessment
-#         fields = '__all__'
-#
-#
-# class AssessmentQuestionResponseSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = AssessmentQuestionResponse
-#         fields = '__all__'
-#
-#     def validate(self, data):
-#         if data['answer'] == AssessmentQuestionResponse.AnswerChoices.ALT and not data.get('substitute_text'):
-#             raise serializers.ValidationError("Substitute text is required for 'alternate' answer.")
-#         return data
-#
-#
-# class BulkAssessmentResponseSerializer(serializers.Serializer):
-#     assessment = serializers.PrimaryKeyRelatedField(queryset=Assessment.objects.all())
-#     responses = AssessmentQuestionResponseSerializer(many=True)
-#
-#     def validate(self, data):
-#         question_ids = [resp['question'].id for resp in data['responses']]
-#         if len(set(question_ids)) != len(question_ids):
-#             raise serializers.ValidationError("Duplicate question in responses.")
-#         return data
-#
-#     def create(self, validated_data):
-#         assessment = validated_data['assessment']
-#         responses_data = validated_data['responses']
-#         instances = []
-#         for response_data in responses_data:
-#             instances.append(AssessmentQuestionResponse.objects.update_or_create(
-#                 assessment=assessment,
-#                 question=response_data['question'],
-#                 defaults=response_data
-#             )[0])
-#         return instances
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from .models import (
+    Assessment, Answer, Question,
+    Standard, Organization, OrganizationType
+)
+
+User = get_user_model()
+
+class AnswerSerializer(serializers.ModelSerializer):
+    question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all())
+
+    class Meta:
+        model = Answer
+        fields = [
+            'question',
+            'answer',
+            'substitute_text',
+            'comment',
+            'references',
+            'reviewed',
+        ]
+        extra_kwargs = {
+            'substitute_text': {'required': False, 'allow_blank': True},
+            'comment': {'required': False, 'allow_blank': True},
+            'references': {'required': False, 'allow_blank': True},
+            'reviewed': {'default': False},
+        }
+
+    def validate(self, attrs):
+        if attrs['answer'] == Answer.AnswerChoices.ALT and not attrs.get('substitute_text'):
+            raise serializers.ValidationError("Substitute answer requires substitute_text.")
+        return attrs
+
+
+class AssessmentSerializer(serializers.ModelSerializer):
+    standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all())
+    organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
+    organization_type = serializers.PrimaryKeyRelatedField(queryset=OrganizationType.objects.all())
+    org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    contacts = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), many=True, required=False
+    )
+    answers = AnswerSerializer(many=True)
+
+    class Meta:
+        model = Assessment
+        fields = [
+            'id',
+            'standard',
+            'name',
+            'date',
+            'facility_name',
+            'site_or_province_or_region',
+            'city_or_site_name',
+            'asset_gross_value',
+            'expected_effort',
+            'organization',
+            'organization_type',
+            'business_unit_or_agency',
+            'org_contact',
+            'facilitator',
+            'critical_service',
+            'critical_service_name',
+            'contacts',
+            'overall_sal',
+            'confidentiality',
+            'integrity',
+            'availability',
+            'answers',
+        ]
+        read_only_fields = ['id']
+
+    @transaction.atomic
+    def create(self, validated_data):
+        answers_data = validated_data.pop('answers')
+        contacts_data = validated_data.pop('contacts', [])
+        user = self.context['request'].user
+
+        assessment = Assessment.objects.create(created_by=user, **validated_data)
+        if contacts_data:
+            assessment.contacts.set(contacts_data)
+
+        for ans in answers_data:
+            Answer.objects.create(assessment=assessment, owner=user, **ans)
+        return assessment
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        answers_data = validated_data.pop('answers')
+        contacts_data = validated_data.pop('contacts', None)
+        user = self.context['request'].user
+
+        # ۱. به‌روزرسانی فیلدهای اصلی Assessment
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # ۲. contacts اگر ارسال شده، ست کن
+        if contacts_data is not None:
+            instance.contacts.set(contacts_data)
+
+        # ۳. به‌روزرسانی یا ایجاد Answerها
+        #   - می‌توانیم ابتدا همه پاسخ‌های قبلی را پاک کنیم، یا update_or_create
+        #   اینجا از update_or_create استفاده می‌کنیم:
+        existing_qs = {a.question_id: a for a in instance.responses.all()}
+        for ans in answers_data:
+            q = ans['question']
+            if q.id in existing_qs:
+                # آپدیت موجود
+                a_obj = existing_qs[q.id]
+                for k, v in ans.items():
+                    setattr(a_obj, k, v)
+                a_obj.owner = user
+                a_obj.save()
+            else:
+                # ایجاد جدید
+                Answer.objects.create(assessment=instance, owner=user, **ans)
+
+        return instance

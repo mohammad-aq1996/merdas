@@ -391,74 +391,37 @@ class QuestionsGroupedByFRSRView(APIView):
         return CustomResponse.success(result)
 
 
-# class AssessmentListCreateView(APIView):
-#     queryset = Assessment.objects.all()
-#
-#     @extend_schema(responses=AssessmentSerializer)
-#     def get(self, request):
-#         assessment = Assessment.objects.filter(created_by=request.user)
-#         serializer = AssessmentSerializer(assessment, many=True)
-#         return CustomResponse.success(message=get_all_data(), data=serializer.data)
-#
-#     @extend_schema(request=AssessmentSerializer, responses=AssessmentSerializer)
-#     def post(self, request):
-#         serializer = AssessmentSerializer(data=request.data, context={'request': request})
-#         if serializer.is_valid():
-#             serializer.save()
-#             return CustomResponse.success(message=create_data(),data=serializer.data, status=status.HTTP_201_CREATED)
-#         return CustomResponse.error(message="ناموفق", errors=serializer.errors)
-#
-#
-# class AssessmentDetailView(APIView):
-#     queryset = Assessment.objects.all()
-#
-#     @extend_schema(responses=AssessmentSerializer)
-#     def get(self, request, pk):
-#         try:
-#             assessment = Assessment.objects.get(pk=pk, created_by=request.user)
-#         except Assessment.DoesNotExist:
-#             return CustomResponse.error(message="ناموفق", status=status.HTTP_404_NOT_FOUND)
-#         serializer = AssessmentSerializer(assessment)
-#         return CustomResponse.success(message=get_single_data(), data=serializer.data)
-#
-#     @extend_schema(responses=AssessmentSerializer, request=AssessmentSerializer)
-#     def put(self, request, pk):
-#         try:
-#             assessment = Assessment.objects.get(pk=pk, created_by=request.user)
-#         except Assessment.DoesNotExist:
-#             return CustomResponse.error(message="ناموفق", status=status.HTTP_404_NOT_FOUND)
-#         serializer = AssessmentSerializer(assessment, data=request.data, partial=True, context={'request': request})
-#         if serializer.is_valid():
-#             serializer.save()
-#             return CustomResponse.success(message=update_data(), data=serializer.data)
-#         return CustomResponse.error(message="ناموفق", errors=serializer.errors)
-#
-#     def delete(self, request, pk):
-#         try:
-#             assessment = Assessment.objects.get(pk=pk, created_by=request.user)
-#         except Assessment.DoesNotExist:
-#             return CustomResponse.error(message="ناموفق", status=status.HTTP_404_NOT_FOUND)
-#         assessment.delete()
-#         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
-#
-#
-# class SubmitAssessmentResponsesAPIView(APIView):
-#     queryset = AssessmentQuestionResponse.objects.all()
-#
-#     @extend_schema(
-#         request=BulkAssessmentResponseSerializer,
-#         responses={201: "Responses submitted successfully"}
-#     )
-#     def post(self, request):
-#         serializer = BulkAssessmentResponseSerializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return CustomResponse.success(message=create_data(), data=serializer.data, status=status.HTTP_201_CREATED)
-#         return CustomResponse.error(message="ناموفق", errors=serializer.errors)
-#
-#     @extend_schema(responses=AssessmentQuestionResponseSerializer)
-#     def get(self, request):
-#         responses = AssessmentQuestionResponse.objects.filter(reviewd_by=request.user)
-#         serializer = AssessmentQuestionResponseSerializer(responses, many=True)
-#         return CustomResponse.success(message=get_all_data(), data=serializer.data)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from django.shortcuts import get_object_or_404
+from .models import Assessment
+from .serializers import AssessmentSerializer
 
+class AssessmentCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = AssessmentSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        assessment = serializer.save()
+        return Response(
+            {"message": "Assessment created", "assessment_id": assessment.id},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class AssessmentUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, pk):
+        assessment = get_object_or_404(Assessment, pk=pk, created_by=request.user)
+        serializer = AssessmentSerializer(
+            assessment, data=request.data, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"message": "Assessment updated", "assessment_id": assessment.id},
+            status=status.HTTP_200_OK
+        )
