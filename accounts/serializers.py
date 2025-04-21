@@ -220,7 +220,7 @@ class UserGetSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         # fields = ('id', 'username', 'last_login', 'is_active', 'groups')
-        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'group']
+        fields = ['id', 'username', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'group', 'is_admin_blocked']
 
     def get_organization(self, obj):
         return obj.organization.name if obj.organization else None
