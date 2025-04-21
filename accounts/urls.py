@@ -32,4 +32,6 @@ urlpatterns = [
     path('org-groups/<int:pk>/', OrgGroupsListView.as_view(), name='org-groups'),
 
     path('same-group-users/', SameGroupUsersView.as_view(), name='same-group-users'),
+
+    path('block/<int:user_id>/', AdminBlockUserView.as_view(), name='admin-block'),
 ]

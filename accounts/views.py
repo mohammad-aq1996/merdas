@@ -489,6 +489,28 @@ class SameGroupUsersView(APIView):
         return CustomResponse.success(get_single_data(), data=serializer.data)
 
 
+class AdminBlockUserView(APIView):
+    permission_classes = (IsAdminUser, )
+
+    @extend_schema(request=AdminBlockUserSerializer)
+    def patch(self, request, user_id):
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return CustomResponse.error("کاربر مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+
+        is_blocked = request.data.get('is_admin_blocked')
+        if is_blocked is None:
+            return CustomResponse.error("وارد کردن این فیلد ضروری میباشد",)
+
+        user.is_admin_blocked = bool(is_blocked)
+        user.save()
+
+        return CustomResponse.success({
+            'detail': 'وضعیت بلاک بودن کاربر با موفقیت تغییر کرد.',
+            'user_id': user.id,
+            'is_admin_blocked': user.is_admin_blocked
+        })
 
 
 

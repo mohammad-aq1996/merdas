@@ -265,7 +265,8 @@ class SimpleUserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username')
 
 
-
+class AdminBlockUserSerializer(serializers.Serializer):
+    is_admin_blocked = serializers.BooleanField()
 
 
 
