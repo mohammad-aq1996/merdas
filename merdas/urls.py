@@ -21,10 +21,10 @@ urlpatterns = [
     path("questions/", QuestionListCreateView.as_view(), name="question-list"),
     path("questions/<int:pk>", QuestionDetailView.as_view(), name="question-detail"),
 
-    path('assessments/', AssessmentListCreateView.as_view(), name="assessment-list"),
-    path('assessments/<int:pk>/', AssessmentDetailView.as_view(), name="assessment-detail"),
-
-    path('response/', SubmitAssessmentResponsesAPIView.as_view(), name="response-list"),
+    # path('assessments/', AssessmentListCreateView.as_view(), name="assessment-list"),
+    # path('assessments/<int:pk>/', AssessmentDetailView.as_view(), name="assessment-detail"),
+    #
+    # path('response/', SubmitAssessmentResponsesAPIView.as_view(), name="response-list"),
 
     path('questions-by-fr-sr/', QuestionsGroupedByFRSRView.as_view(), name="questions-by-fr-sr"),
 ]

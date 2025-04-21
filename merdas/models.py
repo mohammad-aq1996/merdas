@@ -108,27 +108,24 @@ class Assessment(BaseModel):
         return self.name
 
 
-class AssessmentQuestionResponse(BaseModel):
+class QuestionResponse(BaseModel):
     class AnswerChoices(models.TextChoices):
         YES = 'yes', 'Yes'
         NO = 'no', 'No'
         NA = 'not_applicable', 'N/A'
         ALT = 'alternate', 'Alt'
-        REVIEW = 'review', 'Review'
 
-    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name='responses')
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name='responses', blank=True, null=True)
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='responses')
     answer = models.CharField(max_length=20, choices=AnswerChoices.choices)
     substitute_text = models.TextField(blank=True, null=True)
 
     comment = models.TextField(blank=True, null=True)
-
+    documents = models.FileField(upload_to='documents/%Y/%m/%d', blank=True, null=True)
+    references = models.TextField(blank=True, null=True)
     reviewed = models.BooleanField(default=False)
-    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_responses')
-    review_comment = models.TextField(blank=True, null=True)
 
-    class Meta:
-        unique_together = ('assessment', 'question')  # جلوگیری از پاسخ تکراری برای یک سوال در یک ارزیابی
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def clean(self):
         if self.answer == self.AnswerChoices.SUBSTITUTE and not self.substitute_text:
