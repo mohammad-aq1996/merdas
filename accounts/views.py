@@ -103,7 +103,7 @@ class GenerateCaptchaView(APIView):
     permission_classes = (AllowAny, )
 
     def get(self, request):
-        captcha_text = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        captcha_text = ''.join(random.choices(string.ascii_lowercase + string.digits, k=7))
         captcha_key = get_anonymous_cache_key(request)
         cache.set(captcha_key, captcha_text, timeout=300)
 
