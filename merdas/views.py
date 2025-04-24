@@ -398,30 +398,48 @@ from django.shortcuts import get_object_or_404
 from .models import Assessment
 from .serializers import AssessmentSerializer
 
-class AssessmentCreateView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
 
+class AssessmentCreateView(APIView):
+    queryset = Assessment.objects.all()
+
+    @extend_schema(responses=AssessmentReadSerializer)
+    def get(self, request):
+        try:
+            qs = Assessment.objects.filter(created_by=request.user).first()
+        except Assessment.DoesNotExist:
+            return CustomResponse.error("موردی یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AssessmentReadSerializer(qs)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(request=AssessmentSerializer)
     def post(self, request):
         serializer = AssessmentSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        assessment = serializer.save()
-        return Response(
-            {"message": "Assessment created", "assessment_id": assessment.id},
-            status=status.HTTP_201_CREATED
-        )
+        serializer.save()
+        return CustomResponse.success(create_data(), data=serializer.data, status=status.HTTP_201_CREATED)
 
 
 class AssessmentUpdateView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    queryset = Assessment.objects.all()
 
+    @extend_schema(request=AssessmentSerializer)
     def put(self, request, pk):
-        assessment = get_object_or_404(Assessment, pk=pk, created_by=request.user)
+        try:
+            assessment = Assessment.objects.get(created_by=request.user, pk=pk)
+        except Assessment.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = AssessmentSerializer(
             assessment, data=request.data, context={'request': request}
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {"message": "Assessment updated", "assessment_id": assessment.id},
-            status=status.HTTP_200_OK
-        )
+        return CustomResponse.success(update_data(), data=serializer.data)
+
+    def delete(self, request, pk):
+        try:
+            assessment = Assessment.objects.get(created_by=request.user, pk=pk)
+        except Assessment.DoesNotExist:
+            return CustomResponse.success("یافت نشد")
+        assessment.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
+

@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import (Organization, OrganizationType, SR, Standard, FR, Question, Answer)
-# from .models import Assessment, AssessmentQuestionResponse
+from .models import (Organization, OrganizationType, SR, Standard, FR, Question, Assessment, Answer,)
 from django.contrib.auth import get_user_model
+from accounts.serializers import UserGetSerializer
+from django.db import transaction
 
 
 User = get_user_model()
@@ -212,16 +213,6 @@ class QuestionFRSRSerializer(serializers.Serializer):
     overall_sal = serializers.CharField()
 
 
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from django.db import transaction
-from .models import (
-    Assessment, Answer, Question,
-    Standard, Organization, OrganizationType
-)
-
-User = get_user_model()
-
 class AnswerSerializer(serializers.ModelSerializer):
     question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all())
 
@@ -244,7 +235,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['answer'] == Answer.AnswerChoices.ALT and not attrs.get('substitute_text'):
-            raise serializers.ValidationError("Substitute answer requires substitute_text.")
+            raise serializers.ValidationError({attrs['answer']: "متن پاسخ را وارد کنید"})
         return attrs
 
 
@@ -257,7 +248,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
     contacts = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), many=True, required=False
     )
-    answers = AnswerSerializer(many=True)
+    responses = AnswerSerializer(many=True)
 
     class Meta:
         model = Assessment
@@ -283,15 +274,18 @@ class AssessmentSerializer(serializers.ModelSerializer):
             'confidentiality',
             'integrity',
             'availability',
-            'answers',
+            'responses',
         ]
         read_only_fields = ['id']
 
     @transaction.atomic
     def create(self, validated_data):
-        answers_data = validated_data.pop('answers')
+        answers_data = validated_data.pop('responses')
         contacts_data = validated_data.pop('contacts', [])
         user = self.context['request'].user
+
+        if Assessment.objects.filter(created_by=user).exists():
+            raise serializers.ValidationError({"name": "کاربر گرامی شما یک فرآیند نیمه کاره دارید."})
 
         assessment = Assessment.objects.create(created_by=user, **validated_data)
         if contacts_data:
@@ -303,7 +297,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        answers_data = validated_data.pop('answers')
+        answers_data = validated_data.pop('responses')
         contacts_data = validated_data.pop('contacts', None)
         user = self.context['request'].user
 
@@ -334,3 +328,38 @@ class AssessmentSerializer(serializers.ModelSerializer):
                 Answer.objects.create(assessment=instance, owner=user, **ans)
 
         return instance
+
+
+class AssessmentReadSerializer(serializers.ModelSerializer):
+    standard = StandardSerializer(read_only=True)
+    organization = OrganizationReadSerializer()
+    org_contact = UserGetSerializer()
+    critical_service = UserGetSerializer()
+    contacts = UserGetSerializer(many=True, read_only=True)
+    responses = AnswerSerializer(many=True)
+
+    class Meta:
+        model = Assessment
+        fields = (
+            'id',
+            'standard',
+            'name',
+            'date',
+            'facility_name',
+            'site_or_province_or_region',
+            'city_or_site_name',
+            'asset_gross_value',
+            'expected_effort',
+            'organization',
+            'business_unit_or_agency',
+            'org_contact',
+            'facilitator',
+            'critical_service',
+            'critical_service_name',
+            'contacts',
+            'overall_sal',
+            'confidentiality',
+            'integrity',
+            'availability',
+            'responses',
+        )

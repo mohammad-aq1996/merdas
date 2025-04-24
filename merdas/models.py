@@ -86,7 +86,7 @@ class Assessment(BaseModel):
     city_or_site_name = models.CharField(max_length=255)
 
     contacts = models.ManyToManyField(User, related_name="assessments_cantacts")
-    asset_gross_value = models.DecimalField(max_digits=20, decimal_places=2)
+    asset_gross_value = models.DecimalField(max_digits=20, decimal_places=2)#??
     expected_effort = models.CharField(max_length=255)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='assessments_org')
     business_unit_or_agency = models.CharField(max_length=255)

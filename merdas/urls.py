@@ -28,7 +28,7 @@ urlpatterns = [
 
     path('questions-by-fr-sr/', QuestionsGroupedByFRSRView.as_view(), name="questions-by-fr-sr"),
 
-    path('api/assessments/', AssessmentCreateView.as_view(), name='assessment-create'),
-    path('api/assessments/<int:pk>/', AssessmentUpdateView.as_view(), name='assessment-update'),
+    path('assessments/', AssessmentCreateView.as_view(), name='assessment-create'),
+    path('assessments/<int:pk>/', AssessmentUpdateView.as_view(), name='assessment-update'),
 
 ]
