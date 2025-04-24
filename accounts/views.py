@@ -505,7 +505,10 @@ class AdminBlockUserView(APIView):
 
         user.is_admin_blocked = bool(is_blocked)
         user.save()
-
+        if user.is_admin_blocked:
+            log_event(request.user, EventLog.EventTypes.USER_LOCKED, request=request, description=f"کاریر {user.username} با موفقیت لاک شد")
+        else:
+            log_event(request.user, EventLog.EventTypes.USER_UNLOCKED, request=request, description=f"کاریر {user.username} با موفقیت آنلاک شد")
         return CustomResponse.success({
             'detail': 'وضعیت بلاک بودن کاربر با موفقیت تغییر کرد.',
             'user_id': user.id,
