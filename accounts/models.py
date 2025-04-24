@@ -8,7 +8,7 @@ from mptt.models import MPTTModel, TreeForeignKey
 from django.contrib.auth.models import Group
 
 
-class Role(models.Model):
+class Role(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     permissions = models.ManyToManyField(Permission, related_name="roles", blank=True)
@@ -17,7 +17,7 @@ class Role(models.Model):
         return self.name
 
 
-class UserGroup(models.Model):
+class UserGroup(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey("Organization", on_delete=models.PROTECT, related_name="groups")
@@ -65,7 +65,7 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(AbstractBaseUser):
+class User(BaseModel, AbstractBaseUser):
     username = models.CharField(max_length=50, unique=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -169,7 +169,7 @@ class IllPassword(BaseModel):
     password = models.CharField(max_length=255)
 
 
-class OrganizationType(models.Model):
+class OrganizationType(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
 
