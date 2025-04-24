@@ -21,7 +21,7 @@ class EventLog(BaseModel):
         DELETE_GROUP = "DELETE_GROUP", "حذف گروه"
         USER_LOCKED = "USER_LOCKED", "لاک شدن کاربر"
         USER_UNLOCKED = "USER_UNLOCKED", "آنلاک شدن کاربر"
-        UNAUTHORIZED_ACCESS = "UNAUTHORIZED_ACCESS", "دسترسی غیرمجاز"
+        PERMISSION_DENIED = "PERMISSION_DENIED", "دسترسی غیرمجاز"
 
     event_type = models.CharField(max_length=50, choices=EventTypes.choices)  # نوع رویداد
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)  # کاربر ایجادکننده رویداد

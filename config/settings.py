@@ -59,7 +59,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # باید تا جای ممکن بالا باشد
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -67,7 +67,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'logs.middleware.RequestMiddleware',
+    'middlewares.get_user_middleware.RequestMiddleware',
+    'middlewares.log_403_middleware.Log403Middleware',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

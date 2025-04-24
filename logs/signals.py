@@ -1,10 +1,10 @@
 from django.dispatch import receiver
 from .models import EventLog
 from .utils import log_event
-from accounts.models import User, UserGroup, Role
+from accounts.models import UserGroup, Role
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save, post_delete
-from logs.middleware import get_current_user
+from middlewares.get_user_middleware import get_current_user
 
 
 User = get_user_model()
