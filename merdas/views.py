@@ -97,7 +97,7 @@ class OrganizationAPI(APIView):
         serializer = OrganizationReadSerializer(qs, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
-    @extend_schema(responses=OrganizationSerializer, request=OrganizationReadSerializer)
+    @extend_schema(responses=OrganizationReadSerializer, request=OrganizationSerializer)
     def post(self, request, *args, **kwargs):
         serializer = OrganizationSerializer(data=request.data)
         if serializer.is_valid():
@@ -126,7 +126,7 @@ class OrganizationDetailAPI(APIView):
         serializer = OrganizationReadSerializer(organization)
         return CustomResponse.success(get_single_data(), data=serializer.data)
 
-    @extend_schema(responses=OrganizationSerializer, request=OrganizationReadSerializer)
+    @extend_schema(responses=OrganizationReadSerializer, request=OrganizationSerializer)
     def put(self, request, org_id, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=org_id)
