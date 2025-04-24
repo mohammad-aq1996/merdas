@@ -129,7 +129,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return data
 
     def validate_new_password(self, value):
-        value = decryption(value)
+        # value = decryption(value)
         validate_password(value)
         return value
 
@@ -167,7 +167,8 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         return data
 
     def save(self, **kwargs):
-        new_password = decryption(self.validated_data['new_password'])
+        # new_password = decryption(self.validated_data['new_password'])
+        new_password = self.validated_data['new_password']
         user = self.validated_data['user']
         user.set_password(new_password)
         user.force_password_change = True
