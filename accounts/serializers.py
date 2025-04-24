@@ -125,6 +125,8 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         if not request.user.check_password(old_password):
             raise serializers.ValidationError({"old_password": ["رمز عبور فعلی اشتباه است."]})
+        data['old_password'] = old_password
+        data['new_password'] = new_password
 
         return data
 
