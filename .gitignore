@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,pycharm,pycharm+all,pycharm+iml,django
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,pycharm,pycharm+all,pycharm+iml,django
+private2.pem
 private.pem
+
 ### Django ###
 *.log
 *.pot
