@@ -585,19 +585,19 @@ class OrganizationAPI(APIView):
 
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, *args, **kwargs):
-        # parent_id = request.query_params.get("parent", None)
-        # if parent_id:
-        #     organizations = Organization.objects.filter(parent_id=parent_id)
-        # else:
-        #     organizations = Organization.objects.filter(parent=None)
-        user = request.user
-        if user.is_admin or user.is_superuser:
-            qs = self.queryset.all()
-        elif user.organization:
-            qs = user.organization.get_descendants(include_self=True)
+        parent_id = request.query_params.get("parent", None)
+        if parent_id:
+            organizations = Organization.objects.filter(parent_id=parent_id)
         else:
-            qs = []
-        serializer = OrganizationReadSerializer(qs, many=True)
+            organizations = Organization.objects.filter(parent=None)
+        # user = request.user
+        # if user.is_admin or user.is_superuser:
+        #     qs = self.queryset.filter(parent=None)
+        # elif user.organization:
+        #     qs = user.organization.get_descendants(include_self=True)
+        # else:
+        #     qs = []
+        serializer = OrganizationReadSerializer(organizations, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
     @extend_schema(responses=OrganizationReadSerializer, request=OrganizationSerializer)
@@ -615,15 +615,15 @@ class OrganizationDetailAPI(APIView):
 
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, org_id, *args, **kwargs):
-        user = request.user
-        if user.is_admin or user.is_superuser:
-            qs = self.queryset.all()
-        elif user.organization:
-            qs = user.organization.get_descendants(include_self=True)
-        else:
-            qs = []
+        # user = request.user
+        # if user.is_admin or user.is_superuser:
+        #     qs = self.queryset.all()
+        # elif user.organization:
+        #     qs = user.organization.get_descendants(include_self=True)
+        # else:
+        #     qs = []
         try:
-            organization = qs.objects.get(pk=org_id)
+            organization = Organization.objects.get(pk=org_id)
         except Exception as e:
             return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationReadSerializer(organization)
