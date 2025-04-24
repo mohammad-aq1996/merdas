@@ -72,7 +72,6 @@ class LoginView(APIView):
 
 
 class ChangePasswordView(APIView):
-    queryset = User.objects.all()
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(request=ChangePasswordSerializer, responses=ChangePasswordSerializer)
