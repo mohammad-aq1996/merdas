@@ -21,5 +21,5 @@ def decryption(encrypted_data: str) -> str:
         base64.b64decode(encrypted_data),  # Ensure the data is in bytes
         padding.PKCS1v15()  # Use the same padding as in JSEncrypt
     )
-    return decrypted_data
-    # return decrypted_data.decode('utf-8')
+    # return decrypted_data
+    return decrypted_data.decode('utf-8')
