@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.timezone import now, timedelta
 from core.models import BaseModel, Settings
 from django.contrib.auth.hashers import make_password, check_password
-# from merdas.models import Organization
+from mptt.models import MPTTModel, TreeForeignKey
 from django.contrib.auth.models import Group
 
 
@@ -20,7 +20,7 @@ class Role(models.Model):
 class UserGroup(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    organization = models.ForeignKey("merdas.Organization", on_delete=models.PROTECT, related_name="groups")
+    organization = models.ForeignKey("Organization", on_delete=models.PROTECT, related_name="groups")
     roles = models.ManyToManyField(Role, related_name="groups")
 
 
@@ -77,7 +77,7 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=255, blank=True, null=True)
     national_number = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=255, blank=True, null=True)
-    organization = models.ForeignKey("merdas.Organization", on_delete=models.PROTECT, blank=True, null=True)
+    organization = models.ForeignKey("Organization", on_delete=models.PROTECT, blank=True, null=True)
     group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, blank=True, null=True, related_name="users")
 
     force_password_change = models.BooleanField(default=True)
@@ -167,3 +167,28 @@ class IllUsername(BaseModel):
 
 class IllPassword(BaseModel):
     password = models.CharField(max_length=255)
+
+
+class OrganizationType(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Organization(BaseModel, MPTTModel):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    name = models.CharField(max_length=255, unique=True)
+    code = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+    organization_type = models.ForeignKey(OrganizationType, on_delete=models.CASCADE)
+
+    parent = TreeForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="children")
+
+    class MPTTMeta:
+        order_insertion_by = ["name"]
+
+    def __str__(self):
+        return self.name

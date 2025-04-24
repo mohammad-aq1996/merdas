@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername
+from .models import User, Role, UserGroup, LoginAttempt, IllPassword, IllUsername, OrganizationType, Organization
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from core.utils import get_anonymous_cache_key, CustomResponse
@@ -270,7 +270,55 @@ class AdminBlockUserSerializer(serializers.Serializer):
 
 
 
+class OrganizationTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationType
+        fields = ("id", "name", "description")
 
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(validators=[])
+    code = serializers.CharField(validators=[])
+
+    class Meta:
+        model = Organization
+        fields = ("name", "description", "code", "organization_type", "parent")
+
+    def validate(self, data):
+        name = data.get("name")
+        code = data.get("code")
+
+        # exclude خود instance هنگام آپدیت
+        org_qs = Organization.objects.exclude(pk=self.instance.pk) if self.instance else Organization.objects.all()
+
+        if org_qs.filter(name=name).exists():
+            raise serializers.ValidationError({"name": ["سازمان با این اسم از قبل وجود دارد"]})
+
+        if org_qs.filter(code=code).exists():
+            raise serializers.ValidationError({"code": ["سازمان با این کد از قبل وجود دارد"]})
+
+        return data
+
+class OrganizationReadSerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+    organization_type = OrganizationTypeSerializer(many=False, read_only=True)
+    parent = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Organization
+        fields = ("id", "name", "code", "parent", "description", "organization_type", "children")
+
+    def get_children(self, obj):
+        return OrganizationReadSerializer(obj.get_children(), many=True).data
+
+    def get_parent(self, obj):
+        return obj.parent.name if obj.parent else None
+
+
+class OrganizationSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ("id", "name")
 
 
 
