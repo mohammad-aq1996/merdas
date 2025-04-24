@@ -66,7 +66,14 @@ class OrganizationSimpleView(APIView):
 
     @extend_schema(responses=OrganizationSimpleSerializer)
     def get(self, request, *args, **kwargs):
-        serializer = OrganizationSimpleSerializer(self.queryset.all(), many=True)
+        user = request.user
+        if user.is_admin or user.is_superuser:
+            qs = self.queryset.all()
+        elif user.organization:
+            qs = user.organization.get_descendants(include_self=True)
+        else:
+            qs = []
+        serializer = OrganizationSimpleSerializer(qs, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
 
@@ -75,13 +82,19 @@ class OrganizationAPI(APIView):
 
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, *args, **kwargs):
-        parent_id = request.query_params.get("parent", None)
-        if parent_id:
-            organizations = Organization.objects.filter(parent_id=parent_id)
+        # parent_id = request.query_params.get("parent", None)
+        # if parent_id:
+        #     organizations = Organization.objects.filter(parent_id=parent_id)
+        # else:
+        #     organizations = Organization.objects.filter(parent=None)
+        user = request.user
+        if user.is_admin or user.is_superuser:
+            qs = self.queryset.all()
+        elif user.organization:
+            qs = user.organization.get_descendants(include_self=True)
         else:
-            organizations = Organization.objects.filter(parent=None)
-
-        serializer = OrganizationReadSerializer(organizations, many=True)
+            qs = []
+        serializer = OrganizationReadSerializer(qs, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
     @extend_schema(responses=OrganizationSerializer, request=OrganizationReadSerializer)
@@ -99,9 +112,16 @@ class OrganizationDetailAPI(APIView):
 
     @extend_schema(responses=OrganizationReadSerializer)
     def get(self, request, org_id, *args, **kwargs):
+        user = request.user
+        if user.is_admin or user.is_superuser:
+            qs = self.queryset.all()
+        elif user.organization:
+            qs = user.organization.get_descendants(include_self=True)
+        else:
+            qs = []
         try:
-            organization = Organization.objects.get(pk=org_id)
-        except Organization.DoesNotExist:
+            organization = qs.objects.get(pk=org_id)
+        except Exception as e:
             return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
         serializer = OrganizationReadSerializer(organization)
         return CustomResponse.success(get_single_data(), data=serializer.data)
