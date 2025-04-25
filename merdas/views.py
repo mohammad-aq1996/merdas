@@ -3,7 +3,7 @@ from pyexpat.errors import messages
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import SR, FR, Standard
+from .models import SR, FR, Standard, Assessment
 from .serializers import *
 from core.utils import CustomResponse
 from drf_spectacular.utils import extend_schema
@@ -270,15 +270,7 @@ class QuestionsGroupedByFRSRView(APIView):
                 "srs": sr_list
             })
 
-        return CustomResponse.success(result)
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from django.shortcuts import get_object_or_404
-from .models import Assessment
-from .serializers import AssessmentSerializer
+        return CustomResponse.success(message=create_data(), data=result)
 
 
 class AssessmentCreateView(APIView):
