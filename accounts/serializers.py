@@ -143,7 +143,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class AdminChangePasswordSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField()
+    user_id = serializers.CharField()
     new_password = serializers.CharField(write_only=True)
     captcha = serializers.CharField(write_only=True)
 
