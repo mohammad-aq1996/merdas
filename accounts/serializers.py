@@ -274,9 +274,14 @@ class UsernameSerializer(serializers.Serializer):
 
 
 class SimpleUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'username')
+        fields = ('id', 'username', 'full_name')
+
+    def get_full_name(self, obj):
+        return obj.get_full_name()
 
 
 class AdminBlockUserSerializer(serializers.Serializer):
