@@ -17,18 +17,16 @@ class LogoutSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    encrypted_password = serializers.CharField(write_only=True)
     username = serializers.CharField(validators=[])
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'phone_number', 'national_number', 'organization', 'group']
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def validate_password(self, password):
-        password = decryption(password)
-        if IllPassword.objects.filter(password=password).exists():
-            raise serializers.ValidationError("رمز عبور غیرمجاز است")
-        return password
+        fields = [
+            'id', 'username', 'encrypted_password', 'first_name',
+            'last_name', 'phone_number', 'national_number',
+            'organization', 'group'
+        ]
 
     def validate_username(self, value):
         value = decryption(value)
@@ -38,9 +36,16 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('کاربر با این نام کاربری وجود دارد')
         return value
 
+    def validate(self, data):
+        password = decryption(data.pop('encrypted_password'))
+        if IllPassword.objects.filter(password=password).exists():
+            raise serializers.ValidationError({"password": "رمز عبور غیرمجاز است"})
+        data['password'] = password  # بعداً برای ساخت کاربر استفاده می‌شه
+        return data
+
     def create(self, validated_data):
-        username = validated_data.pop('username')
         password = validated_data.pop('password')
+        username = validated_data.pop('username')
         user = User.objects.create_user(username=username, password=password, **validated_data)
         return user
 
