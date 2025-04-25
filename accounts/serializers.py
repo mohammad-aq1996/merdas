@@ -138,6 +138,9 @@ class ChangePasswordSerializer(serializers.Serializer):
                 "new_password": "رمز انتخابی شما معتبر نمیباشد"
             })
 
+        data["old_password"] = old_password
+        data["new_password"] = new_password
+
         return data
 
 
