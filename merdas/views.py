@@ -226,7 +226,7 @@ class QuestionsGroupedByFRSRView(APIView):
         "Low": 0,
         "Moderate": 1,
         "High": 2,
-        "Very_high": 3,
+        "Very High": 3,
     }
 
     @extend_schema(request=QuestionFRSRSerializer)
