@@ -37,7 +37,7 @@ class StandardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standard
-        fields = ('id', 'title', 'fr')
+        fields = ('id', 'title', 'type', 'description', 'fr')
 
 
 class StandardCreateSerializer(serializers.ModelSerializer):
@@ -45,7 +45,7 @@ class StandardCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standard
-        fields = ('title', 'fr')
+        fields = ('title', 'type', 'description', 'fr')
 
     def validate(self, data):
         if 'fr' not in data: # for partial update
@@ -84,6 +84,8 @@ class StandardCreateSerializer(serializers.ModelSerializer):
         frs_data = validated_data.pop('fr', None)
 
         instance.title = validated_data.get('title', instance.title)
+        instance.type = validated_data.get('type', instance.type)
+        instance.description = validated_data.get('description', instance.description)
         instance.save()
 
         if frs_data is not None:
@@ -160,7 +162,7 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
 
 
 class QuestionFRSRSerializer(serializers.Serializer):
-    standard_id = serializers.IntegerField()
+    standard_id = serializers.CharField()
     overall_sal = serializers.CharField()
 
 
