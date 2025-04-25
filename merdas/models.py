@@ -69,7 +69,6 @@ class Assessment(BaseModel):
     expected_effort = models.CharField(max_length=255)
     organization = models.ForeignKey("accounts.Organization", on_delete=models.CASCADE, related_name='assessments_org')
     business_unit_or_agency = models.CharField(max_length=255)
-    organization_type = models.ForeignKey("accounts.OrganizationType", on_delete=models.CASCADE)
     org_contact = models.ForeignKey(User, related_name='assessments_contact', on_delete=models.CASCADE)
     facilitator = models.CharField(max_length=255)
     critical_service = models.ForeignKey(User, related_name='assessments_critical', on_delete=models.CASCADE)

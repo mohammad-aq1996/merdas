@@ -195,7 +195,6 @@ class AnswerSerializer(serializers.ModelSerializer):
 class AssessmentSerializer(serializers.ModelSerializer):
     standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all())
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
-    organization_type = serializers.PrimaryKeyRelatedField(queryset=OrganizationType.objects.all())
     org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     contacts = serializers.PrimaryKeyRelatedField(
@@ -216,7 +215,6 @@ class AssessmentSerializer(serializers.ModelSerializer):
             'asset_gross_value',
             'expected_effort',
             'organization',
-            'organization_type',
             'business_unit_or_agency',
             'org_contact',
             'facilitator',
@@ -290,6 +288,7 @@ class AssessmentReadSerializer(serializers.ModelSerializer):
     critical_service = UserGetSerializer()
     contacts = UserGetSerializer(many=True, read_only=True)
     responses = AnswerSerializer(many=True)
+    organization_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Assessment
@@ -316,3 +315,6 @@ class AssessmentReadSerializer(serializers.ModelSerializer):
             'availability',
             'responses',
         )
+
+    def get_organization_type(self, obj):
+        return obj.organization.organization_type.name if obj.organization.organization_type else None
