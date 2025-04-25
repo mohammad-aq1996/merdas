@@ -39,8 +39,8 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        username = decryption(validated_data.pop('username'))
-        password = decryption(validated_data.pop('password'))
+        username = validated_data.pop('username')
+        password = validated_data.pop('password')
         user = User.objects.create_user(username=username, password=password, **validated_data)
         return user
 
@@ -125,25 +125,22 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         if not request.user.check_password(old_password):
             raise serializers.ValidationError({"old_password": ["رمز عبور فعلی اشتباه است."]})
-        data['old_password'] = old_password
-        data['new_password'] = new_password
+
+        try:
+            validate_password(new_password)
+        except Exception as e:
+            raise serializers.ValidationError({
+                "new_password": "رمز انتخابی شما معتبر نمیباشد"
+            })
 
         return data
 
-    def validate_new_password(self, value):
-        # value = decryption(value)
-        validate_password(value)
-        return value
 
 
 class AdminChangePasswordSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     new_password = serializers.CharField(write_only=True)
     captcha = serializers.CharField(write_only=True)
-
-    def validate_new_password(self, value):
-        validate_password(value)
-        return value
 
     def validate(self, data):
         request = self.context.get("request")
@@ -159,6 +156,13 @@ class AdminChangePasswordSerializer(serializers.Serializer):
 
         # new_password = decryption(new_password)
         new_password = decryption(data['new_password'])
+
+        try:
+            validate_password(new_password)
+        except Exception as e:
+            raise serializers.ValidationError({
+                "new_password": "رمز انتخابی شما معتبر نمیباشد"
+            })
 
         if IllPassword.objects.filter(password=new_password).exists():
             raise serializers.ValidationError({"password": ["رمز عبور غیرمجاز است"]})
