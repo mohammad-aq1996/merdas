@@ -314,6 +314,7 @@ class AssessmentReadSerializer(serializers.ModelSerializer):
             'integrity',
             'availability',
             'responses',
+            'organization_type',
         )
 
     def get_organization_type(self, obj):
