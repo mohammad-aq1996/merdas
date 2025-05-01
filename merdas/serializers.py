@@ -177,7 +177,7 @@ class AnswerReferenceSerializer(serializers.ModelSerializer):
 
 class AnswerSerializer(serializers.ModelSerializer):
     question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all())
-    references = AnswerReferenceSerializer(many=True, write_only=True, required=False)
+    references = AnswerReferenceSerializer(many=True, required=False)
 
     class Meta:
         model = Answer
@@ -213,13 +213,13 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 class AssessmentSerializer(serializers.ModelSerializer):
     standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all())
-    organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all())
-    org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False)
+    org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     contacts = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), many=True, required=False
     )
-    responses = AnswerSerializer(many=True)
+    responses = AnswerSerializer(many=True, required=False)
 
     class Meta:
         model = Assessment
@@ -250,7 +250,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        answers_data = validated_data.pop('responses')
+        answers_data = validated_data.pop('responses', [])
         contacts_data = validated_data.pop('contacts', [])
         user = self.context['request'].user
 
@@ -267,7 +267,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        answers_data = validated_data.pop('responses')
+        answers_data = validated_data.pop('responses', [])
         contacts_data = validated_data.pop('contacts', None)
         user = self.context['request'].user
 
@@ -337,4 +337,7 @@ class AssessmentReadSerializer(serializers.ModelSerializer):
         )
 
     def get_organization_type(self, obj):
-        return obj.organization.organization_type.name if obj.organization.organization_type else None
+        try:
+            return obj.organization.organization_type.name
+        except Exception:
+            return None

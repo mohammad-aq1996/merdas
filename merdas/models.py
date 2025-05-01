@@ -112,7 +112,7 @@ class Answer(BaseModel):
 class AnswerReference(BaseModel):
     answer = models.ForeignKey(Answer, on_delete=models.CASCADE, related_name='references')
     title = models.CharField(max_length=255)
-    file = models.FileField(upload_to='references/%Y/%m/%d')
+    file = models.FileField(upload_to='files/references/%Y/%m/%d')
 
 
 
