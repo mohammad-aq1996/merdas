@@ -59,25 +59,25 @@ class Assessment(BaseModel):
     SAL_CHOICES = [('low', 'Low'), ('moderate', 'Moderate'), ('high', 'High'), ('very_high', 'Very High')]
 
     name = models.CharField(max_length=255)
-    date = jmodels.jDateTimeField()
-    facility_name = models.CharField(max_length=255)
-    site_or_province_or_region = models.CharField(max_length=255)
-    city_or_site_name = models.CharField(max_length=255)
+    date = jmodels.jDateTimeField(blank=True, null=True)
+    facility_name = models.CharField(max_length=255, blank=True, null=True)
+    site_or_province_or_region = models.CharField(max_length=255, blank=True, null=True)
+    city_or_site_name = models.CharField(max_length=255, blank=True, null=True)
 
-    contacts = models.ManyToManyField(User, related_name="assessments_cantacts")
-    asset_gross_value = models.CharField(max_length=255)
-    expected_effort = models.CharField(max_length=255)
-    organization = models.ForeignKey("accounts.Organization", on_delete=models.CASCADE, related_name='assessments_org')
-    business_unit_or_agency = models.CharField(max_length=255)
-    org_contact = models.ForeignKey(User, related_name='assessments_contact', on_delete=models.CASCADE)
-    facilitator = models.CharField(max_length=255)
-    critical_service = models.ForeignKey(User, related_name='assessments_critical', on_delete=models.CASCADE)
+    contacts = models.ManyToManyField(User, related_name="assessments_cantacts", blank=True)
+    asset_gross_value = models.CharField(max_length=255, blank=True, null=True)
+    expected_effort = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.ForeignKey("accounts.Organization", on_delete=models.CASCADE, related_name='assessments_org', blank=True, null=True)
+    business_unit_or_agency = models.CharField(max_length=255, blank=True, null=True)
+    org_contact = models.ForeignKey(User, related_name='assessments_contact', on_delete=models.CASCADE, blank=True, null=True)
+    facilitator = models.CharField(max_length=255, blank=True, null=True)
+    critical_service = models.ForeignKey(User, related_name='assessments_critical', on_delete=models.CASCADE, blank=True, null=True)
     critical_service_name = models.TextField(blank=True, null=True)
 
-    overall_sal = models.CharField(max_length=20, choices=SAL_CHOICES)
-    confidentiality = models.CharField(max_length=20, choices=SAL_CHOICES)
-    integrity = models.CharField(max_length=20, choices=SAL_CHOICES)
-    availability = models.CharField(max_length=20, choices=SAL_CHOICES)
+    overall_sal = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
+    confidentiality = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
+    integrity = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
+    availability = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
 
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='assessments')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_assessments')
@@ -100,7 +100,7 @@ class Answer(BaseModel):
 
     comment = models.TextField(blank=True, null=True)
     documents = models.FileField(upload_to='documents/%Y/%m/%d', blank=True, null=True)
-    references = models.TextField(blank=True, null=True)
+    # references = models.TextField(blank=True, null=True)
     reviewed = models.BooleanField(default=False)
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -109,7 +109,10 @@ class Answer(BaseModel):
         unique_together = ('assessment', 'question')
 
 
-
+class AnswerReference(BaseModel):
+    answer = models.ForeignKey(Answer, on_delete=models.CASCADE, related_name='references')
+    title = models.CharField(max_length=255)
+    file = models.FileField(upload_to='references/%Y/%m/%d')
 
 
 

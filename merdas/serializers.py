@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SR, Standard, FR, Question, Assessment, Answer
+from .models import SR, Standard, FR, Question, Assessment, Answer, AnswerReference
 from django.contrib.auth import get_user_model
 from accounts.serializers import UserGetSerializer
 from django.db import transaction
@@ -11,6 +11,8 @@ User = get_user_model()
 
 
 class SRSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)
+
     class Meta:
         model = SR
         fields = ('id', 'title', 'description')
@@ -18,6 +20,7 @@ class SRSerializer(serializers.ModelSerializer):
 
 class FRSerializer(serializers.ModelSerializer):
     sr = SRSerializer(many=True)
+    id = serializers.UUIDField(required=False)
 
     class Meta:
         model = FR
@@ -45,7 +48,7 @@ class StandardCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standard
-        fields = ('title', 'type', 'description', 'fr')
+        fields = ('id', 'title', 'type', 'description', 'fr')
 
     def validate(self, data):
         if 'fr' not in data: # for partial update
@@ -166,8 +169,15 @@ class QuestionFRSRSerializer(serializers.Serializer):
     overall_sal = serializers.CharField()
 
 
+class AnswerReferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnswerReference
+        fields = ['title', 'file']
+
+
 class AnswerSerializer(serializers.ModelSerializer):
     question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all())
+    references = AnswerReferenceSerializer(many=True, write_only=True, required=False)
 
     class Meta:
         model = Answer
@@ -190,6 +200,15 @@ class AnswerSerializer(serializers.ModelSerializer):
         if attrs['answer'] == Answer.AnswerChoices.ALT and not attrs.get('substitute_text'):
             raise serializers.ValidationError({attrs['answer']: "متن پاسخ را وارد کنید"})
         return attrs
+
+    def create(self, validated_data):
+        references_data = validated_data.pop('references', [])
+        answer = Answer.objects.create(**validated_data)
+
+        for ref in references_data:
+            AnswerReference.objects.create(answer=answer, **ref)
+
+        return answer
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
