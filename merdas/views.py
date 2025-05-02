@@ -1,5 +1,5 @@
 from pyexpat.errors import messages
-
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -275,6 +275,7 @@ class QuestionsGroupedByFRSRView(APIView):
 
 class AssessmentCreateView(APIView):
     queryset = Assessment.objects.all()
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(responses=AssessmentReadSerializer)
     def get(self, request):
@@ -292,6 +293,7 @@ class AssessmentCreateView(APIView):
 
 class AssessmentUpdateView(APIView):
     queryset = Assessment.objects.all()
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(responses=AssessmentReadSerializer)
     def get(self, request, pk):
