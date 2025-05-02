@@ -1,5 +1,5 @@
 from pyexpat.errors import messages
-
+from drf_nested_forms.parsers import NestedMultiPartParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -272,11 +272,10 @@ class QuestionsGroupedByFRSRView(APIView):
 
         return CustomResponse.success(message=create_data(), data=result)
 
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-import json
+
 class AssessmentCreateView(APIView):
+    parser_classes = (NestedMultiPartParser,)
     queryset = Assessment.objects.all()
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(responses=AssessmentReadSerializer)
     def get(self, request):
@@ -286,44 +285,15 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
-        data = request.data.copy()
-        raw_responses = data.get('responses')
-
-        # تبدیل responses از رشته JSON به لیست
-        if isinstance(raw_responses, str):
-            try:
-                responses_data = json.loads(raw_responses)
-            except ValueError:
-                return CustomResponse.error("فرمت JSON فیلد responses معتبر نیست.", status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return CustomResponse.error("فیلد responses باید رشته JSON باشد.", status=status.HTTP_400_BAD_REQUEST)
-
-        # تزریق فایل‌ها داخل references[x]['file']
-        for i, answer in enumerate(responses_data):
-            for j, ref in enumerate(answer.get('references', [])):
-                file_key = f'responses_files_{i}_{j}'
-                if file_key in request.FILES:
-                    ref['file'] = request.FILES[file_key]
-
-        # جایگزینی پاسخ‌ها با لیست دیکشنری در request.data
-        data.setlist('responses', responses_data)
-
-        # ایجاد ارزیابی با serializer
-        serializer = AssessmentSerializer(data=data, context={'request': request})
+        serializer = AssessmentSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        assessment = serializer.save()
-
-        read_serializer = AssessmentReadSerializer(assessment)
-        return CustomResponse.success(
-            message="ارزیابی با موفقیت ثبت شد.",
-            data=read_serializer.data,
-            status=status.HTTP_201_CREATED
-        )
+        serializer.save()
+        return CustomResponse.success(create_data(), data=serializer.data, status=status.HTTP_201_CREATED)
 
 
 class AssessmentUpdateView(APIView):
+    parser_classes = (NestedMultiPartParser,)
     queryset = Assessment.objects.all()
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(responses=AssessmentReadSerializer)
     def get(self, request, pk):
