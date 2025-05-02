@@ -286,40 +286,67 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
+        # Make a mutable copy of request data
         data = request.data.copy()
 
-        # --- اینجا بررسی می‌کنیم اگر لیست است، مستقیم استفاده شود ---
+        # Extract raw responses
         raw_responses = data.pop('responses', [])
+
+        # Parse and normalize responses_data to a list of dicts
         if isinstance(raw_responses, str):
             try:
-                responses_data = json.loads(raw_responses)
+                loaded = json.loads(raw_responses)
             except ValueError:
                 return CustomResponse.error(
                     message="فرمت JSON فیلد responses معتبر نیست.",
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            if isinstance(loaded, dict):
+                # Convert dict of items into a list of values
+                responses_data = list(loaded.values())
+            elif isinstance(loaded, list):
+                responses_data = loaded
+            else:
+                return CustomResponse.error(
+                    message="فرمت فیلد responses اشتباه است.",
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         elif isinstance(raw_responses, list):
             responses_data = raw_responses
+
         else:
-            # در غیر این‌صورت یک خطا بده
             return CustomResponse.error(
                 message="فرمت فیلد responses اشتباه است.",
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ۲) اعتبارسنجی و ذخیرهٔ Assessment (بدون responses)
+        # Ensure each item in responses_data is a dict
+        if not all(isinstance(item, dict) for item in responses_data):
+            return CustomResponse.error(
+                message="هر عنصر داخل responses باید یک آبجکت باشد.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate and save Assessment (without responses)
         serializer = AssessmentSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         assessment = serializer.save()
 
-        # ۳) ساخت Answers و AnswerReferences
+        # Create Answers and AnswerReferences
         for idx, ans in enumerate(responses_data):
-            refs = ans.pop('references', [])
+            # Pop references list safely
+            refs = ans.pop('references', []) or []
+
+            # Create Answer instance
             answer = Answer.objects.create(
                 assessment=assessment,
                 owner=request.user,
                 **ans
             )
+
+            # Attach files to AnswerReference
             for jdx, ref in enumerate(refs):
                 file_key = f'file_{idx}_{jdx}'
                 AnswerReference.objects.create(
@@ -328,10 +355,10 @@ class AssessmentCreateView(APIView):
                     file=request.FILES.get(file_key)
                 )
 
-        # ۴) پاسخ نهایی
+        # Prepare and return response
         read_serializer = AssessmentReadSerializer(assessment)
         return CustomResponse.success(
-            message=create_data(),
+            message="Assessment با موفقیت ایجاد شد.",
             data=read_serializer.data,
             status=status.HTTP_201_CREATED
         )
