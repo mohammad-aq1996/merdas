@@ -56,7 +56,11 @@ class Question(BaseModel):
 
 
 class Assessment(BaseModel):
-    SAL_CHOICES = [('low', 'Low'), ('moderate', 'Moderate'), ('high', 'High'), ('very_high', 'Very High')]
+    class QuestionLevel(models.TextChoices):
+        low = "Low"
+        moderate = "Moderate"
+        high = "High"
+        very_high = "Very High"
 
     name = models.CharField(max_length=255)
     date = jmodels.jDateTimeField(blank=True, null=True)
@@ -74,10 +78,10 @@ class Assessment(BaseModel):
     critical_service = models.ForeignKey(User, related_name='assessments_critical', on_delete=models.CASCADE, blank=True, null=True)
     critical_service_name = models.TextField(blank=True, null=True)
 
-    overall_sal = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
-    confidentiality = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
-    integrity = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
-    availability = models.CharField(max_length=20, choices=SAL_CHOICES, blank=True, null=True)
+    overall_sal = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
+    confidentiality = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
+    integrity = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
+    availability = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
 
     standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='assessments')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_assessments')
