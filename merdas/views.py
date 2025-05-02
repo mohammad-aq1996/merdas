@@ -286,23 +286,33 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
-        # 1) کپی داده‌ها و استخراج responses
         data = request.data.copy()
-        responses_json = data.pop('responses', '[]')
-        try:
-            responses_data = json.loads(responses_json)
-        except ValueError:
+
+        # --- اینجا بررسی می‌کنیم اگر لیست است، مستقیم استفاده شود ---
+        raw_responses = data.pop('responses', [])
+        if isinstance(raw_responses, str):
+            try:
+                responses_data = json.loads(raw_responses)
+            except ValueError:
+                return CustomResponse.error(
+                    message="فرمت JSON فیلد responses معتبر نیست.",
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        elif isinstance(raw_responses, list):
+            responses_data = raw_responses
+        else:
+            # در غیر این‌صورت یک خطا بده
             return CustomResponse.error(
-                message="فرمت JSON فیلد responses معتبر نیست.",
+                message="فرمت فیلد responses اشتباه است.",
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 2) اعتبارسنجی و ذخیرهٔ Assessment (بدون responses)
+        # ۲) اعتبارسنجی و ذخیرهٔ Assessment (بدون responses)
         serializer = AssessmentSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         assessment = serializer.save()
 
-        # 3) ساخت Responses و References
+        # ۳) ساخت Answers و AnswerReferences
         for idx, ans in enumerate(responses_data):
             refs = ans.pop('references', [])
             answer = Answer.objects.create(
@@ -318,7 +328,7 @@ class AssessmentCreateView(APIView):
                     file=request.FILES.get(file_key)
                 )
 
-        # 4) بازگرداندن دادهٔ خواندنی
+        # ۴) پاسخ نهایی
         read_serializer = AssessmentReadSerializer(assessment)
         return CustomResponse.success(
             message=create_data(),
