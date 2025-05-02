@@ -285,10 +285,45 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
-        serializer = AssessmentSerializer(data=request.data, context={'request': request})
+        # 1) کپی داده‌ها و استخراج responses
+        data = request.data.copy()
+        responses_json = data.pop('responses', '[]')
+        try:
+            responses_data = json.loads(responses_json)
+        except ValueError:
+            return CustomResponse.error(
+                message="فرمت JSON فیلد responses معتبر نیست.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2) اعتبارسنجی و ذخیرهٔ Assessment (بدون responses)
+        serializer = AssessmentSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return CustomResponse.success(create_data(), data=serializer.data, status=status.HTTP_201_CREATED)
+        assessment = serializer.save()
+
+        # 3) ساخت Responses و References
+        for idx, ans in enumerate(responses_data):
+            refs = ans.pop('references', [])
+            answer = Answer.objects.create(
+                assessment=assessment,
+                owner=request.user,
+                **ans
+            )
+            for jdx, ref in enumerate(refs):
+                file_key = f'file_{idx}_{jdx}'
+                AnswerReference.objects.create(
+                    answer=answer,
+                    title=ref.get('title'),
+                    file=request.FILES.get(file_key)
+                )
+
+        # 4) بازگرداندن دادهٔ خواندنی
+        read_serializer = AssessmentReadSerializer(assessment)
+        return CustomResponse.success(
+            message=create_data(),
+            data=read_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class AssessmentUpdateView(APIView):
