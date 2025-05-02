@@ -254,9 +254,6 @@ class AssessmentSerializer(serializers.ModelSerializer):
         contacts_data = validated_data.pop('contacts', [])
         user = self.context['request'].user
 
-        if Assessment.objects.filter(created_by=user).exists():
-            raise serializers.ValidationError({"name": "کاربر گرامی شما یک فرآیند نیمه کاره دارید."})
-
         assessment = Assessment.objects.create(created_by=user, **validated_data)
         if contacts_data:
             assessment.contacts.set(contacts_data)

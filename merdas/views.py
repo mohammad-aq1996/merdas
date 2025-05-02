@@ -278,12 +278,9 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(responses=AssessmentReadSerializer)
     def get(self, request):
-        try:
-            qs = Assessment.objects.filter(created_by=request.user).first()
-        except Assessment.DoesNotExist:
-            return CustomResponse.error("موردی یافت نشد", status=status.HTTP_404_NOT_FOUND)
-        serializer = AssessmentReadSerializer(qs)
-        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+        qs = Assessment.objects.filter(created_by=request.user)
+        serializer = AssessmentReadSerializer(qs, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
@@ -295,6 +292,15 @@ class AssessmentCreateView(APIView):
 
 class AssessmentUpdateView(APIView):
     queryset = Assessment.objects.all()
+
+    @extend_schema(responses=AssessmentReadSerializer)
+    def get(self, request, pk):
+        try:
+            assessment = Assessment.objects.get(created_by=request.user, pk=pk)
+        except Assessment.DoesNotExist:
+            return CustomResponse.error("یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AssessmentReadSerializer(assessment)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
 
     @extend_schema(request=AssessmentSerializer)
     def put(self, request, pk):
