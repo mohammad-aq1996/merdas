@@ -1,5 +1,5 @@
 from pyexpat.errors import messages
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,7 +9,6 @@ from core.utils import CustomResponse
 from drf_spectacular.utils import extend_schema
 from core.persian_response import *
 from collections import defaultdict
-import json
 
 
 class SRListCreateView(APIView):
@@ -273,7 +272,8 @@ class QuestionsGroupedByFRSRView(APIView):
 
         return CustomResponse.success(message=create_data(), data=result)
 
-
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+import json
 class AssessmentCreateView(APIView):
     queryset = Assessment.objects.all()
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -286,79 +286,36 @@ class AssessmentCreateView(APIView):
 
     @extend_schema(request=AssessmentSerializer)
     def post(self, request):
-        # Make a mutable copy of request data
         data = request.data.copy()
+        raw_responses = data.get('responses')
 
-        # Extract raw responses
-        raw_responses = data.pop('responses', [])
-
-        # Parse and normalize responses_data to a list of dicts
+        # تبدیل responses از رشته JSON به لیست
         if isinstance(raw_responses, str):
             try:
-                loaded = json.loads(raw_responses)
+                responses_data = json.loads(raw_responses)
             except ValueError:
-                return CustomResponse.error(
-                    message="فرمت JSON فیلد responses معتبر نیست.",
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if isinstance(loaded, dict):
-                # Convert dict of items into a list of values
-                responses_data = list(loaded.values())
-            elif isinstance(loaded, list):
-                responses_data = loaded
-            else:
-                return CustomResponse.error(
-                    message="فرمت فیلد responses اشتباه است.",
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        elif isinstance(raw_responses, list):
-            responses_data = raw_responses
-
+                return CustomResponse.error("فرمت JSON فیلد responses معتبر نیست.", status=status.HTTP_400_BAD_REQUEST)
         else:
-            return CustomResponse.error(
-                message="فرمت فیلد responses اشتباه است.",
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return CustomResponse.error("فیلد responses باید رشته JSON باشد.", status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure each item in responses_data is a dict
-        if not all(isinstance(item, dict) for item in responses_data):
-            return CustomResponse.error(
-                message="هر عنصر داخل responses باید یک آبجکت باشد.",
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # تزریق فایل‌ها داخل references[x]['file']
+        for i, answer in enumerate(responses_data):
+            for j, ref in enumerate(answer.get('references', [])):
+                file_key = f'responses_files_{i}_{j}'
+                if file_key in request.FILES:
+                    ref['file'] = request.FILES[file_key]
 
-        # Validate and save Assessment (without responses)
+        # جایگزینی پاسخ‌ها با لیست دیکشنری در request.data
+        data.setlist('responses', responses_data)
+
+        # ایجاد ارزیابی با serializer
         serializer = AssessmentSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         assessment = serializer.save()
 
-        # Create Answers and AnswerReferences
-        for idx, ans in enumerate(responses_data):
-            # Pop references list safely
-            refs = ans.pop('references', []) or []
-
-            # Create Answer instance
-            answer = Answer.objects.create(
-                assessment=assessment,
-                owner=request.user,
-                **ans
-            )
-
-            # Attach files to AnswerReference
-            for jdx, ref in enumerate(refs):
-                file_key = f'file_{idx}_{jdx}'
-                AnswerReference.objects.create(
-                    answer=answer,
-                    title=ref.get('title'),
-                    file=request.FILES.get(file_key)
-                )
-
-        # Prepare and return response
         read_serializer = AssessmentReadSerializer(assessment)
         return CustomResponse.success(
-            message="Assessment با موفقیت ایجاد شد.",
+            message="ارزیابی با موفقیت ثبت شد.",
             data=read_serializer.data,
             status=status.HTTP_201_CREATED
         )
