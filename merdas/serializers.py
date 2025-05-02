@@ -259,7 +259,20 @@ class AssessmentSerializer(serializers.ModelSerializer):
             assessment.contacts.set(contacts_data)
 
         for ans in answers_data:
-            Answer.objects.create(assessment=assessment, owner=user, **ans)
+            # ۱. جدا کردن references از ans
+            references_data = ans.pop('references', [])
+
+            # ۲. ساخت پاسخ اصلی بدون کلید references
+            a_obj = Answer.objects.create(
+                assessment=assessment,
+                owner=user,
+                **ans
+            )
+
+            # ۳. اگر references داشت، آن‌ها را یکی‌یکی بساز
+            for ref in references_data:
+                AnswerReference.objects.create(answer=a_obj, **ref)
+
         return assessment
 
     @transaction.atomic
@@ -268,20 +281,21 @@ class AssessmentSerializer(serializers.ModelSerializer):
         contacts_data = validated_data.pop('contacts', None)
         user = self.context['request'].user
 
-        # ۱. به‌روزرسانی فیلدهای اصلی Assessment
+        # ۱. به‌روز‌رسانی فیلدهای اصلی Assessment
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # ۲. contacts اگر ارسال شده، ست کن
+        # ۲. contacts
         if contacts_data is not None:
             instance.contacts.set(contacts_data)
 
-        # ۳. به‌روزرسانی یا ایجاد Answerها
-        #   - می‌توانیم ابتدا همه پاسخ‌های قبلی را پاک کنیم، یا update_or_create
-        #   اینجا از update_or_create استفاده می‌کنیم:
+        # ۳. پاسخ‌ها
         existing_qs = {a.question_id: a for a in instance.responses.all()}
         for ans in answers_data:
+            # ۳.۱ جدا کردن references
+            references_data = ans.pop('references', None)
+
             q = ans['question']
             if q.id in existing_qs:
                 # آپدیت موجود
@@ -292,7 +306,17 @@ class AssessmentSerializer(serializers.ModelSerializer):
                 a_obj.save()
             else:
                 # ایجاد جدید
-                Answer.objects.create(assessment=instance, owner=user, **ans)
+                a_obj = Answer.objects.create(
+                    assessment=instance, owner=user, **ans
+                )
+
+            # ۳.۲ مدیریت references پس از save
+            if references_data is not None:
+                # حذف قدیم‌ها
+                a_obj.references.all().delete()
+                # ایجاد آیتم‌های جدید
+                for ref in references_data:
+                    AnswerReference.objects.create(answer=a_obj, **ref)
 
         return instance
 
