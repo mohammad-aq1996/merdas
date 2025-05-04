@@ -13,6 +13,8 @@ class SR(BaseModel):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
 
+    help_text = models.TextField(blank=True, null=True)
+
     def __str__(self):
         return self.title
 
@@ -32,6 +34,8 @@ class Standard(BaseModel):
     type = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     fr = models.ManyToManyField(FR, related_name='standards')
+
+    st_reference = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.title

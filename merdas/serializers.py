@@ -15,7 +15,7 @@ class SRSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SR
-        fields = ('id', 'title', 'description')
+        fields = ('id', 'title', 'description', 'help_text')
 
 
 class FRSerializer(serializers.ModelSerializer):
@@ -40,7 +40,7 @@ class StandardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standard
-        fields = ('id', 'title', 'type', 'description', 'fr')
+        fields = ('id', 'title', 'type', 'description', 'st_reference', 'fr')
 
 
 class StandardCreateSerializer(serializers.ModelSerializer):
@@ -48,7 +48,7 @@ class StandardCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standard
-        fields = ('id', 'title', 'type', 'description', 'fr')
+        fields = ('id', 'title', 'type', 'description', 'st_reference', 'fr')
 
     def validate(self, data):
         if 'fr' not in data: # for partial update
@@ -89,6 +89,7 @@ class StandardCreateSerializer(serializers.ModelSerializer):
         instance.title = validated_data.get('title', instance.title)
         instance.type = validated_data.get('type', instance.type)
         instance.description = validated_data.get('description', instance.description)
+        instance.st_reference = validated_data.get('st_reference', instance.st_reference)
         instance.save()
 
         if frs_data is not None:
