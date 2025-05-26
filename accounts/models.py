@@ -124,7 +124,23 @@ class User(BaseModel, AbstractBaseUser):
 
     def must_change_password(self):
         """ چک می‌کند که آیا کاربر باید پسوردش را تغییر دهد یا نه """
-        return self.password_expired() or self.force_password_change
+        if self.force_password_change:
+            return True
+
+        if not self.password_changed_at:
+            return True  # اگر زمان تغییر مشخص نیست، احتیاطاً اجبار اعمال می‌کنیم
+
+        expire_days = int(Settings.get_setting("PASSWORD_EXPIRATION_DAYS", default=15))
+        if now() - self.password_changed_at > timedelta(days=expire_days):
+            self.force_password_change = True
+            self.save(update_fields=["force_password_change"])
+            return True
+
+        return False
+
+    # def must_change_password(self):
+    #     """ چک می‌کند که آیا کاربر باید پسوردش را تغییر دهد یا نه """
+    #     return self.password_expired() or self.force_password_change
 
     def check_old_passwords(self, new_password):
         """ بررسی می‌کند که آیا پسورد جدید در لیست پسوردهای قدیمی هست یا نه """
