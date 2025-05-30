@@ -1,5 +1,6 @@
 from pyexpat.errors import messages
 from drf_nested_forms.parsers import NestedMultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,6 +10,9 @@ from core.utils import CustomResponse
 from drf_spectacular.utils import extend_schema
 from core.persian_response import *
 from collections import defaultdict
+import csv
+import codecs
+from rest_framework.parsers import MultiPartParser
 
 
 class SRListCreateView(APIView):
@@ -325,3 +329,68 @@ class AssessmentUpdateView(APIView):
         assessment.delete()
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
+
+class QuestionCSVUploadByTitleView(APIView):
+    parser_classes = [MultiPartParser]
+    queryset = Question.objects.all()
+
+    def post(self, request):
+        csv_file = request.FILES.get('file')
+        if not csv_file or not csv_file.name.endswith('.csv'):
+            return CustomResponse.error("فایل باید با فرمت CSV ارسال شود.")
+
+        decoded_file = codecs.iterdecode(csv_file, 'utf-8-sig')  # handles BOM too
+        reader = csv.DictReader(decoded_file)
+
+        created = 0
+        errors = []
+
+        for index, row in enumerate(reader, start=2):  # row 1 is header
+            try:
+                # استخراج عنوان‌ها
+                st_title = row.get('standard_title', '').strip()
+                fr_title = row.get('fr_title', '').strip()
+                sr_title = row.get('sr_title', '').strip()
+
+                # پیدا کردن آبجکت‌ها با title
+                standard_qs = Standard.objects.filter(title=st_title)
+                fr_qs = FR.objects.filter(title=fr_title)
+                sr_qs = SR.objects.filter(title=sr_title)
+
+                # بررسی ambiguity و وجود
+                if not standard_qs.exists():
+                    return CustomResponse.error(f"Standard با عنوان '{st_title}' یافت نشد.")
+                if standard_qs.count() > 1:
+                    return CustomResponse.error(f"بیش از یک Standard با عنوان '{st_title}' یافت شد.")
+
+                if not fr_qs.exists():
+                    return CustomResponse.error(f"FR با عنوان '{fr_title}' یافت نشد.")
+                if fr_qs.count() > 1:
+                    return CustomResponse.error(f"بیش از یک FR با عنوان '{fr_title}' یافت شد.")
+
+                if not sr_qs.exists():
+                    return CustomResponse.error(f"SR با عنوان '{sr_title}' یافت نشد.")
+                if sr_qs.count() > 1:
+                    return CustomResponse.error(f"بیش از یک SR با عنوان '{sr_title}' یافت شد.")
+
+                # ساخت سوال
+                Question.objects.create(
+                    title=row.get('title', '').strip(),
+                    question_level=row.get('question_level', '').strip(),
+                    standard=standard_qs.first(),
+                    fr=fr_qs.first(),
+                    sr=sr_qs.first(),
+                    description=row.get('description', '').strip()
+                )
+                created += 1
+
+            except Exception as e:
+                errors.append({
+                    "row": index,
+                    "detail": str(e)
+                })
+
+        return CustomResponse.success({
+            "created_count": created,
+            "errors": errors
+        }, status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED)
