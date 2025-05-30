@@ -1,6 +1,6 @@
 from pyexpat.errors import messages
 from drf_nested_forms.parsers import NestedMultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,6 +13,8 @@ from collections import defaultdict
 import csv
 import codecs
 from rest_framework.parsers import MultiPartParser
+from io import StringIO
+from django.http import HttpResponse
 
 
 class SRListCreateView(APIView):
@@ -394,3 +396,23 @@ class QuestionCSVUploadByTitleView(APIView):
             "created_count": created,
             "errors": errors
         }, status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED)
+
+
+class QuestionCSVTemplateDownloadView(APIView):
+    permission_classes = (AllowAny, )  # یا [IsAdminUser] برای محدودسازی
+
+    def get(self, request):
+        header = ['standard_title', 'fr_title', 'sr_title', 'title', 'question_level', 'description']
+
+        csv_buffer = StringIO()
+        csv_buffer.write('\ufeff')  # فقط یکبار BOM برای Excel
+
+        writer = csv.writer(csv_buffer)
+        writer.writerow(header)
+
+        response = HttpResponse(
+            csv_buffer.getvalue(),
+            content_type='text/csv'
+        )
+        response['Content-Disposition'] = 'attachment; filename="questions_template.csv"'
+        return response

@@ -20,6 +20,8 @@ urlpatterns = [
     path('assessments/', AssessmentCreateView.as_view(), name='assessment-create'),
     path('assessments/<uuid:pk>/', AssessmentUpdateView.as_view(), name='assessment-update'),
 
-    path('questions/upload-csv-by-title/', QuestionCSVUploadByTitleView.as_view(), name='upload_questions_by_title')
+    path('questions/upload-csv-by-title/', QuestionCSVUploadByTitleView.as_view(), name='upload_questions_by_title'),
+    path('questions/template-csv/', QuestionCSVTemplateDownloadView.as_view(), name='download_questions_csv_template')
+
 
 ]
