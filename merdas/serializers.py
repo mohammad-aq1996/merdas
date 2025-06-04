@@ -249,6 +249,15 @@ class AssessmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
 
+    def validate(self, attrs):
+        nullify = ['availability', 'confidentiality', 'integrity', 'overall_sal',
+                   'critical_service', 'org_contact', 'organization']
+        for field in nullify:
+            val = attrs.get(field)
+            if val == '' or val == 'null':
+                attrs[field] = None
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         answers_data = validated_data.pop('responses', [])

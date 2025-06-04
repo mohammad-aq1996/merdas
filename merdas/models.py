@@ -87,7 +87,7 @@ class Assessment(BaseModel):
     integrity = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
     availability = models.CharField(max_length=20, choices=QuestionLevel.choices, blank=True, null=True)
 
-    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='assessments')
+    standard = models.ForeignKey(Standard, on_delete=models.CASCADE, related_name='assessments', blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_assessments')
 
     def __str__(self):
