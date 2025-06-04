@@ -212,15 +212,35 @@ class AnswerSerializer(serializers.ModelSerializer):
         return answer
 
 
+
+class SafePrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        if data in ['', 'null', 'None', None]:
+            return None
+        return super().to_internal_value(data)
+
+
+class SafeChoiceField(serializers.ChoiceField):
+    def to_internal_value(self, data):
+        if data in ['', 'null', 'None', None]:
+            return None
+        return super().to_internal_value(data)
+
+
 class AssessmentSerializer(serializers.ModelSerializer):
-    standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all(), required=False)
-    organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False)
-    org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    contacts = serializers.PrimaryKeyRelatedField(
+    standard = SafePrimaryKeyRelatedField(queryset=Standard.objects.all(), required=False)
+    organization = SafePrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False)
+    org_contact = SafePrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    critical_service = SafePrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    contacts = SafePrimaryKeyRelatedField(
         queryset=User.objects.all(), many=True, required=False
     )
     responses = AnswerSerializer(many=True, required=False)
+
+    overall_sal = SafeChoiceField(choices=Assessment.QuestionLevel.choices, required=False, allow_null=True)
+    confidentiality = SafeChoiceField(choices=Assessment.QuestionLevel.choices, required=False, allow_null=True)
+    integrity = SafeChoiceField(choices=Assessment.QuestionLevel.choices, required=False, allow_null=True)
+    availability = SafeChoiceField(choices=Assessment.QuestionLevel.choices, required=False, allow_null=True)
 
     class Meta:
         model = Assessment
@@ -248,18 +268,6 @@ class AssessmentSerializer(serializers.ModelSerializer):
             'responses',
         ]
         read_only_fields = ['id']
-
-    def validate(self, attrs):
-        # لیست فیلدهایی که nullable هستن و ممکنه فرانت مقدار خراب بفرسته
-        nullables = [
-            'availability', 'confidentiality', 'integrity', 'overall_sal',
-            'critical_service', 'org_contact', 'organization'
-        ]
-        for field in nullables:
-            val = attrs.get(field, None)
-            if val in ['', 'null', 'None', None]:  # تمام حالت‌های مزخرف ممکن
-                attrs[field] = None
-        return attrs
 
     @transaction.atomic
     def create(self, validated_data):
