@@ -213,7 +213,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 class AssessmentSerializer(serializers.ModelSerializer):
-    standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all())
+    standard = serializers.PrimaryKeyRelatedField(queryset=Standard.objects.all(), required=False)
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False)
     org_contact = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     critical_service = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
@@ -250,11 +250,14 @@ class AssessmentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def validate(self, attrs):
-        nullify = ['availability', 'confidentiality', 'integrity', 'overall_sal',
-                   'critical_service', 'org_contact', 'organization']
-        for field in nullify:
-            val = attrs.get(field)
-            if val == '' or val == 'null':
+        # لیست فیلدهایی که nullable هستن و ممکنه فرانت مقدار خراب بفرسته
+        nullables = [
+            'availability', 'confidentiality', 'integrity', 'overall_sal',
+            'critical_service', 'org_contact', 'organization'
+        ]
+        for field in nullables:
+            val = attrs.get(field, None)
+            if val in ['', 'null', 'None', None]:  # تمام حالت‌های مزخرف ممکن
                 attrs[field] = None
         return attrs
 
