@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,pycharm,pycharm+all,pycharm+iml,django
 private2.pem
 private.pem
-
+files/references/*
 ### Django ###
 *.log
 *.pot

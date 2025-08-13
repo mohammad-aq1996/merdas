@@ -26,5 +26,6 @@ urlpatterns = [
     path('account/', include('accounts.urls')),
     path('merdas/', include('merdas.urls')),
     path('logs/', include('logs.urls')),
+    path('assets/', include('assets.urls')),
     path('settings/', SettingsAPIView.as_view(), name='settings'),
 ]

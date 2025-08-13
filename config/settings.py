@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'accounts.apps.AccountsConfig',
     'logs.apps.LogsConfig',
-    'merdas.apps.MerdasConfig'
+    'merdas.apps.MerdasConfig',
+    'assets.apps.AssetsConfig'
 ]
 
 MIDDLEWARE = [
