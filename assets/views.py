@@ -59,3 +59,68 @@ class AttributeCategoryDetailView(APIView):
             return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
         sr.delete()
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
+
+
+class AttributeListCreateView(APIView):
+    queryset = Attribute.objects.all()
+
+    @extend_schema(responses=AttributeSerializer)
+    def get(self, request):
+        attributes = Attribute.objects.all()
+        serializer = AttributeSerializer(attributes, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=AttributeSerializer, request=AttributeSerializer)
+    def post(self, request):
+        serializer = AttributeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AttributeDetailView(APIView):
+    queryset = Attribute.objects.all()
+
+    @extend_schema(responses=AttributeSerializer)
+    def get(self, request, pk):
+        try:
+            attribute = Attribute.objects.get(pk=pk)
+        except Attribute.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AttributeSerializer(attribute)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=AttributeSerializer, request=AttributeSerializer)
+    def put(self, request, pk):
+        try:
+            attribute = Attribute.objects.get(pk=pk)
+        except Attribute.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AttributeSerializer(attribute, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        try:
+            attribute = Attribute.objects.get(pk=pk)
+        except Attribute.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        attribute.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
