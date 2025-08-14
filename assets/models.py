@@ -78,7 +78,7 @@ class Asset(BaseModel):
 
 
 class AssetTypeAttribute(BaseModel):
-    asset_type = models.CharField(max_length=32, choices=Asset.AssetType.choices)
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="type_rules")
     attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name="type_rules")
     is_required = models.BooleanField(default=False)
     is_multi = models.BooleanField(default=False)
@@ -87,13 +87,8 @@ class AssetTypeAttribute(BaseModel):
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['asset_type', 'attribute'], name='uq_type_attribute')
-        ]
-
     def __str__(self):
-        return f"{self.asset_type} :: (req={self.is_required}, multi={self.is_multi})"
+        return f"{self.asset.title} :: (req={self.is_required}, multi={self.is_multi})"
 
 
 # ---------- EAV Values ----------
