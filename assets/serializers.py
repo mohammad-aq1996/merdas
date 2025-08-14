@@ -13,7 +13,7 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
 
 
 class AttributeSerializer(serializers.ModelSerializer):
-    category_title = serializers.SerializerMethodField()
+    category_value = serializers.CharField(source='category.value')
 
     class Meta:
         model = Attribute
@@ -24,10 +24,7 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'title_en',
                   'property_type',
                   'category',
-                  'category_title',)
-
-    def get_category_title(self, obj):
-        return obj.category.value
+                  'category_value',)
 
 
 class AssetTypeAttributeSerializer(serializers.ModelSerializer):
@@ -94,8 +91,6 @@ class AssetReadSerializer(serializers.ModelSerializer):
 class AssetAttributeSerializer(serializers.Serializer):
     asset_type = serializers.CharField(write_only=True)
     asset_id = serializers.CharField(write_only=True)
-
-
 
 
 

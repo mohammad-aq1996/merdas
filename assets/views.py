@@ -187,10 +187,12 @@ class AssetAttributesView(APIView):
 
         for type_rule in asset_type_attr:
             category = type_rule.attribute.category
-            attr_data = model_to_dict(type_rule.attribute)
+            attr_data = {**model_to_dict(type_rule.attribute),
+                         'is_required': type_rule.is_required,
+                         'is_multi': type_rule.is_multi}
             result.setdefault(category.value, []).append(attr_data)
 
-        return CustomResponse.success(result)
+        return CustomResponse.success(message=get_all_data(), data=result)
 
 
 
