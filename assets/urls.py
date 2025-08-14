@@ -8,4 +8,7 @@ urlpatterns = [
 
     path('attribute/', AttributeListCreateView.as_view(), name='attribute_list_create'),
     path('attribute/<uuid:pk>/', AttributeDetailView.as_view(), name='attribute_detail'),
+
+    path('', AssetListCreateView.as_view(), name='asset_list_create'),
+    path('<uuid:pk>/', AssetDetailView.as_view(), name='asset_detail'),
 ]

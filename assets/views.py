@@ -112,9 +112,57 @@ class AttributeDetailView(APIView):
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
+class AssetListCreateView(APIView):
+    queryset = Asset.objects.all()
+
+    @extend_schema(responses=AssetReadSerializer)
+    def get(self, request):
+        assets = Asset.objects.all()
+        serializer = AssetReadSerializer(assets, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=AssetReadSerializer, request=AssetCreateSerializer)
+    def post(self, request):
+        serializer = AssetCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer = serializer.save(owner=request.user)
+            output_serializer = AssetReadSerializer(serializer)
+            return CustomResponse.success(message=create_data(), data=output_serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class AssetDetailView(APIView):
+    queryset = Asset.objects.all()
 
+    @extend_schema(responses=AssetReadSerializer)
+    def get(self, request, pk):
+        try:
+            asset = Asset.objects.get(pk=pk)
+        except Asset.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AssetReadSerializer(asset)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=AssetReadSerializer, request=AssetCreateSerializer)
+    def put(self, request, pk):
+        try:
+            asset = Asset.objects.get(pk=pk)
+        except Asset.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = AssetCreateSerializer(asset, data=request.data)
+        if serializer.is_valid():
+            serializer = serializer.save(owner=request.user)
+            output_serializer = AssetReadSerializer(serializer)
+            return CustomResponse.success(message=update_data(), data=output_serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            asset = Asset.objects.get(pk=pk)
+        except Asset.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        asset.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
 
