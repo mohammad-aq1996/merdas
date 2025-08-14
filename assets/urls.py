@@ -11,4 +11,6 @@ urlpatterns = [
 
     path('', AssetListCreateView.as_view(), name='asset_list_create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset_detail'),
+
+    path('attribute/list/', AssetAttributesView.as_view(), name='asset_attribute_list_create'),
 ]

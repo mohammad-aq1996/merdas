@@ -13,6 +13,8 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
 
 
 class AttributeSerializer(serializers.ModelSerializer):
+    category_title = serializers.SerializerMethodField()
+
     class Meta:
         model = Attribute
         fields = ('id',
@@ -21,15 +23,25 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'title',
                   'title_en',
                   'property_type',
-                  'category')
+                  'category',
+                  'category_title',)
+
+    def get_category_title(self, obj):
+        return obj.category.value
 
 
 class AssetTypeAttributeSerializer(serializers.ModelSerializer):
+    attribute_read = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = AssetTypeAttribute
         fields = ('attribute',
                   'is_required',
-                  'is_multi',)
+                  'is_multi',
+                  'attribute_read',)
+
+    def get_attribute_read(self, obj):
+        return AttributeSerializer(obj.attribute).data
 
 
 class AssetCreateSerializer(serializers.ModelSerializer):
@@ -63,7 +75,6 @@ class AssetCreateSerializer(serializers.ModelSerializer):
         return instance
 
 
-
 class AssetReadSerializer(serializers.ModelSerializer):
     attributes = serializers.SerializerMethodField()
 
@@ -80,7 +91,9 @@ class AssetReadSerializer(serializers.ModelSerializer):
         return AssetTypeAttributeSerializer(obj.type_rules.all(), many=True).data
 
 
-
+class AssetAttributeSerializer(serializers.Serializer):
+    asset_type = serializers.CharField(write_only=True)
+    asset_id = serializers.CharField(write_only=True)
 
 
 

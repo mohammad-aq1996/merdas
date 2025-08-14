@@ -1,3 +1,5 @@
+from django.forms.models import model_to_dict
+
 from drf_spectacular.utils import extend_schema
 
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -165,8 +167,30 @@ class AssetDetailView(APIView):
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
+class AssetAttributesView(APIView):
+    queryset = Asset.objects.all()
 
+    @extend_schema(responses=AssetAttributeSerializer, request=AssetAttributeSerializer)
+    def post(self, request):
+        asset_type = request.data.get('asset_type')
+        asset_id = request.data.get('asset_id')
 
+        if not asset_type or not asset_id:
+            return CustomResponse.error('پارامترها ناقص هستند')
+
+        asset = Asset.objects.filter(pk=asset_id).first()
+        if not asset:
+            return CustomResponse.error('دارایی پیدا نشد')
+
+        asset_type_attr = asset.type_rules.select_related('attribute__category')
+        result = {}
+
+        for type_rule in asset_type_attr:
+            category = type_rule.attribute.category
+            attr_data = model_to_dict(type_rule.attribute)
+            result.setdefault(category.value, []).append(attr_data)
+
+        return CustomResponse.success(result)
 
 
 
