@@ -13,4 +13,7 @@ urlpatterns = [
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset_detail'),
 
     path('attribute/list/', AssetAttributesView.as_view(), name='asset_attribute_list_create'),
+
+    path('relation/', RelationListCreateView.as_view(), name='relation_list_create'),
+    path('relation/<uuid:pk>/', RelationDetailView.as_view(), name='relation_detail'),
 ]

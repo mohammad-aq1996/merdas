@@ -211,5 +211,51 @@ class AssetAttributeValueView(APIView):
         return CustomResponse.error('ridi')
 
 
+class RelationListCreateView(APIView):
+    queryset = Relation.objects.all()
 
+    def get(self, request):
+        relations = Relation.objects.all()
+        serializer = RelationSerializer(relations, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(responses=RelationSerializer, request=RelationSerializer)
+    def post(self, request):
+        serializer = RelationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RelationDetailView(APIView):
+    queryset = Relation.objects.all()
+
+    def get(self, request, pk):
+        try:
+            relation = Relation.objects.get(pk=pk)
+        except Relation.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = RelationSerializer(relation)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(responses=RelationSerializer, request=RelationSerializer)
+    def put(self, request, pk):
+        try:
+            relation = Relation.objects.get(pk=pk)
+        except Relation.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        serializer = RelationSerializer(relation, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        try:
+            relation = Relation.objects.get(pk=pk)
+        except Relation.DoesNotExist:
+            return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
+        relation.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 

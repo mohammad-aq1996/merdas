@@ -129,7 +129,10 @@ class AssetAttributeValueSerializer(serializers.Serializer):
         return obj
 
 
-
+class RelationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Relation
+        fields = ('key', 'name', )
 
 
 
