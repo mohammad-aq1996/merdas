@@ -93,6 +93,67 @@ class AssetAttributeSerializer(serializers.Serializer):
     asset_id = serializers.CharField(write_only=True)
 
 
+class AttributeValuesSerializer(serializers.Serializer):
+    attribute_id = serializers.CharField(write_only=True)
+    value = serializers.CharField(write_only=True)
+
+    def validate(self, attr):
+        attribute_id = attr.get('attribute_id')
+        value = attr.get('value')
+
+        attribute = Attribute.objects.filter(pk=attribute_id).first()
+        if not attribute:
+            raise serializers.ValidationError('Attribute not found')
+
+        property_type = attribute.property_type
+        if not isinstance(value, property_type):
+            raise serializers.ValidationError('Value is not a property type')
+
+        return value
+
+
+class AssetAttributeValueSerializer(serializers.Serializer):
+    attribute_values = serializers.ListField(write_only=True, child=AttributeValuesSerializer())
+
+    class Meta:
+        model = AssetAttributeValue
+        fields = ('asset',
+                  'attribute_values',)
+
+    def create(self, validated_data):
+        attribute_values = validated_data.pop('attribute_value')
+
+        for attribute_value in attribute_values:
+            obj = AssetAttributeValue.objects.create(asset=validated_data['asset'], **attribute_value)
+
+        return obj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

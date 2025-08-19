@@ -189,11 +189,26 @@ class AssetAttributesView(APIView):
             category = type_rule.attribute.category
             attr_data = {**model_to_dict(type_rule.attribute),
                          'is_required': type_rule.is_required,
-                         'is_multi': type_rule.is_multi}
+                         'is_multi': type_rule.is_multi,
+                         'id': type_rule.attribute.id}
             result.setdefault(category.value, []).append(attr_data)
 
         return CustomResponse.success(message=get_all_data(), data=result)
 
+
+class AssetAttributeValueView(APIView):
+    queryset = Asset.objects.all()
+
+    def get(self, request, pk):
+        ...
+
+    @extend_schema(responses=AssetAttributeValueSerializer, request=AssetAttributeValueSerializer)
+    def post(self, request):
+        serializer = AssetAttributeValueSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer = serializer.save(owner=request.user)
+            return CustomResponse.success(message=create_data(), data=serializer.data)
+        return CustomResponse.error('ridi')
 
 
 
