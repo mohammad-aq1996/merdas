@@ -112,32 +112,44 @@ class AttributeValuesSerializer(serializers.Serializer):
         return value
 
 
-class AssetAttributeValueSerializer(serializers.Serializer):
-    attribute_values = serializers.ListField(write_only=True, child=AttributeValuesSerializer())
-
-    class Meta:
-        model = AssetAttributeValue
-        fields = ('asset',
-                  'attribute_values',)
-
-    def create(self, validated_data):
-        attribute_values = validated_data.pop('attribute_value')
-
-        for attribute_value in attribute_values:
-            obj = AssetAttributeValue.objects.create(asset=validated_data['asset'], **attribute_value)
-
-        return obj
-
-
 class RelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Relation
         fields = ('key', 'name', )
 
 
+class AssetRelationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssetRelation
+        fields = ('relation',
+                  # 'source_asset',
+                  'target_asset',
+                  'start_date',
+                  'end_date',)
 
 
+class AssetAttributeValueSerializer(serializers.Serializer):
+    attribute_values = serializers.ListField(write_only=True, child=AttributeValuesSerializer())
+    relations = serializers.ListField(write_only=True, child=RelationSerializer())
 
+    class Meta:
+        model = AssetAttributeValue
+        fields = ('asset',
+                  'attribute_values',
+                  'relations',)
+
+    def create(self, validated_data):
+        attribute_values = validated_data.pop('attribute_value')
+        relations = validated_data.pop('relations')
+        asset = validated_data.pop('asset')
+
+        for attribute_value in attribute_values:
+            obj = AssetAttributeValue.objects.create(asset=asset, **attribute_value)
+
+        for relation in relations:
+            AssetRelation.objects.create(source_asset=asset, **relation)
+
+        return obj
 
 
 
