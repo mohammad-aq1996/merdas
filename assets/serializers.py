@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from assets.models import *
+from django.db import transaction
 
 
 class AttributeCategorySerializer(serializers.ModelSerializer):
@@ -106,16 +107,22 @@ class AttributeValuesSerializer(serializers.Serializer):
             raise serializers.ValidationError('Attribute not found')
 
         property_type = attribute.property_type
-        if not isinstance(value, property_type):
-            raise serializers.ValidationError('Value is not a property type')
 
-        return value
+        if property_type == 'int':
+            attr['value_int'] = int(value)
+        elif property_type == 'str':
+            attr['value_str'] = str(value)
+        attr.pop('value')
+        # if not isinstance(value, property_type):
+        #     raise serializers.ValidationError('Value is not a property type')
+
+        return attr
 
 
 class RelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Relation
-        fields = ('key', 'name', )
+        fields = ('id', 'created_at', 'updated_at', 'key', 'name', )
 
 
 class AssetRelationSerializer(serializers.ModelSerializer):
@@ -129,20 +136,23 @@ class AssetRelationSerializer(serializers.ModelSerializer):
 
 
 class AssetAttributeValueSerializer(serializers.Serializer):
-    attribute_values = serializers.ListField(write_only=True, child=AttributeValuesSerializer())
-    relations = serializers.ListField(write_only=True, child=RelationSerializer())
+    attribute_values = AttributeValuesSerializer(many=True)
+    relations = AssetRelationSerializer(many=True)
+    asset_id = serializers.CharField(write_only=True)
 
-    class Meta:
-        model = AssetAttributeValue
-        fields = ('asset',
-                  'attribute_values',
-                  'relations',)
+    # class Meta:
+    #     model = AssetAttributeValue
+    #     fields = ('asset_id',
+    #               'attribute_values',
+    #               'relations',)
 
+    @transaction.atomic
     def create(self, validated_data):
-        attribute_values = validated_data.pop('attribute_value')
+        attribute_values = validated_data.pop('attribute_values')
         relations = validated_data.pop('relations')
-        asset = validated_data.pop('asset')
+        asset_id = validated_data.pop('asset_id')
 
+        asset = Asset.objects.get(id=asset_id)
         for attribute_value in attribute_values:
             obj = AssetAttributeValue.objects.create(asset=asset, **attribute_value)
 

@@ -196,6 +196,26 @@ class AssetAttributesView(APIView):
         return CustomResponse.success(message=get_all_data(), data=result)
 
 
+"""
+{
+  "asset_id": "862656ad-2864-4767-ba05-ff34db20aaa4",
+  "attribute_values": [
+    {
+      "attribute_id": "9f098939-16f0-40a4-b953-251da5874fca",
+      "value": "mamat"
+    },
+    {
+      "attribute_id": "7296cc24-eee4-4b49-a87a-72fc47e6435a",
+      "value": "ahmatt"
+    }
+  ],
+  "relations": [
+    {
+      "relation": "e9716cbf-150c-45d1-b5bc-c062b6939367",
+      "target_asset": "ac8f0184-4158-4dea-b37a-b724e9f490f3"    }
+  ]
+}
+"""
 class AssetAttributeValueView(APIView):
     queryset = Asset.objects.all()
 
@@ -206,8 +226,8 @@ class AssetAttributeValueView(APIView):
     def post(self, request):
         serializer = AssetAttributeValueSerializer(data=request.data)
         if serializer.is_valid():
-            serializer = serializer.save(owner=request.user)
-            return CustomResponse.success(message=create_data(), data=serializer.data)
+            serializer.save(owner=request.user)
+            return CustomResponse.success(message=create_data())
         return CustomResponse.error('ridi')
 
 
