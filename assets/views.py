@@ -199,15 +199,15 @@ class AssetAttributesView(APIView):
 
 """
 {
-  "asset_id": "862656ad-2864-4767-ba05-ff34db20aaa4",
+  "asset": "862656ad-2864-4767-ba05-ff34db20aaa4",
   "attribute_values": [
     {
-      "attribute_id": "9f098939-16f0-40a4-b953-251da5874fca",
-      "value": "mamat"
+      "attribute": "9f098939-16f0-40a4-b953-251da5874fca",
+      "value": 30
     },
     {
-      "attribute_id": "7296cc24-eee4-4b49-a87a-72fc47e6435a",
-      "value": "ahmatt"
+      "attribute": "7296cc24-eee4-4b49-a87a-72fc47e6435a",
+      "value": 25
     }
   ],
   "relations": [
@@ -248,13 +248,31 @@ class AssetAttributeValueView(APIView):
         )
         return CustomResponse.success(message=get_single_data(), data=serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(responses=AssetAttributeValueSerializer, request=AssetAttributeValueSerializer)
+    @extend_schema(request=AssetAttributeValueUpsertSerializer, responses=None)
     def post(self, request):
-        serializer = AssetAttributeValueSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(owner=request.user)
-            return CustomResponse.success(message=create_data())
-        return CustomResponse.error('ridi')
+        ser = AssetAttributeValueUpsertSerializer(data=request.data, context={"owner": request.user})
+        if not ser.is_valid():
+            return CustomResponse.error(message="ناموفق", errors=ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        summary = ser.save()
+        return CustomResponse.success(message=create_data(), data=summary, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=AssetAttributeValueUpsertSerializer, responses=None)
+    def put(self, request, asset_id: str):
+        try:
+            asset = Asset.objects.get(asset=asset_id)
+        except Asset.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد', status=status.HTTP_404_NOT_FOUND)
+
+        ser = AssetAttributeValueUpsertSerializer(
+            instance=asset,  # باعث فراخوانی update می‌شود
+            data=request.data,
+            context={"owner": request.user},
+            partial=False
+        )
+        if not ser.is_valid():
+            return CustomResponse.error(message="ناموفق", errors=ser.errors, status=status.HTTP_400_BAD_REQUEST)
+        summary = ser.save()
+        return CustomResponse.success(message=update_data(), data=summary, status=status.HTTP_200_OK)
 
 
 class RelationListCreateView(APIView):

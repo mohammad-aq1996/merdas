@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from assets.models import *
 from django.db import transaction
+from datetime import datetime, date
 
 
 class AttributeCategorySerializer(serializers.ModelSerializer):
@@ -204,31 +205,387 @@ class AssetRelationSerializer(serializers.ModelSerializer):
                   'end_date',)
 
 
-class AssetAttributeValueSerializer(serializers.Serializer):
-    attribute_values = AttributeValuesSerializer(many=True)
-    relations = AssetRelationSerializer(many=True)
-    asset_id = serializers.CharField(write_only=True)
+# class AssetAttributeValueSerializer(serializers.Serializer):
+#     attribute_values = AttributeValuesSerializer(many=True)
+#     relations = AssetRelationSerializer(many=True)
+#     asset_id = serializers.CharField(write_only=True)
+#
+#     @transaction.atomic
+#     def create(self, validated_data):
+#         attribute_values = validated_data.pop('attribute_values')
+#         relations = validated_data.pop('relations')
+#         asset_id = validated_data.pop('asset_id')
+#
+#         asset = Asset.objects.get(id=asset_id)
+#         for attribute_value in attribute_values:
+#             obj = AssetAttributeValue.objects.create(asset=asset, **attribute_value)
+#
+#         for relation in relations:
+#             AssetRelation.objects.create(source_asset=asset, **relation)
+#
+#         return obj
 
-    # class Meta:
-    #     model = AssetAttributeValue
-    #     fields = ('asset_id',
-    #               'attribute_values',
-    #               'relations',)
+from collections import defaultdict
+from django.db import transaction
+from django.db.models import Count, Q
+from rest_framework import serializers
 
+from .models import (
+    Asset, Attribute, AttributeChoice,
+    AssetAttributeValue, AssetRelation, Relation, AssetTypeAttribute
+)
+
+
+# ---------- Nested: Attribute Value (one-hot by property_type) ----------
+
+class AttributeValueInSerializer(serializers.Serializer):
+    attribute = serializers.PrimaryKeyRelatedField(queryset=Attribute.objects.all())
+    value = serializers.JSONField()  # هرچی فرانت بده: str/int/float/bool/...
+    status = serializers.ChoiceField(
+        choices=AssetAttributeValue.Status.choices,
+        required=False,
+        default=AssetAttributeValue.Status.REGISTERED
+    )
+
+    # کش choices برای جلوگیری از کوئری تکراری
+    _choices_cache: dict = {}
+
+    def _coerce_int(self, v):
+        if isinstance(v, bool):
+            # جلوگیری از قبول شدن True/False به عنوان int
+            raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
+        try:
+            if isinstance(v, (int,)):
+                return int(v)
+            if isinstance(v, float) and v.is_integer():
+                return int(v)
+            if isinstance(v, str):
+                return int(v.strip())
+        except (ValueError, TypeError):
+            pass
+        raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
+
+    def _coerce_float(self, v):
+        try:
+            if isinstance(v, (int, float)):
+                x = float(v)
+            elif isinstance(v, str):
+                s = v.strip().replace(",", ".")
+                x = float(s)
+            else:
+                raise ValueError
+            if x != x or x in (float("inf"), float("-inf")):
+                raise ValueError
+            return x
+        except (ValueError, TypeError):
+            raise serializers.ValidationError("مقدار عدد اعشاری معتبر نیست.")
+
+    def _coerce_bool(self, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int,)):
+            if v in (0, 1):
+                return bool(v)
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in ("true", "yes", "on", "1"):
+                return True
+            if s in ("false", "no", "off", "0"):
+                return False
+        raise serializers.ValidationError("مقدار بولین معتبر نیست (true/false, 1/0, yes/no, on/off).")
+
+    def _coerce_date(self, v):
+        # ترجیح: ISO 8601
+        if isinstance(v, date) and not isinstance(v, datetime):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            s = v.strip()
+            # چند الگوی رایج
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(s, fmt).date()
+                except ValueError:
+                    continue
+            # تلاش نهایی: fromisoformat
+            try:
+                return date.fromisoformat(s)
+            except ValueError:
+                pass
+        raise serializers.ValidationError("تاریخ معتبر نیست. فرمت پیشنهادی: YYYY-MM-DD")
+
+    def _resolve_choice(self, attribute: Attribute, v):
+        """
+        v می‌تواند:
+          - UUID pk (str)
+          - internal value (attribute_choice.value)
+          - label (attribute_choice.label)
+        اولویت: pk → value__iexact → label__iexact
+        """
+        attr_id = attribute.id
+        cache_key = f"{attr_id}"
+
+        # کش لیست choices این attribute
+        choices_qs = self._choices_cache.get(cache_key)
+        if choices_qs is None:
+            choices_qs = list(AttributeChoice.objects.filter(attribute_id=attr_id))
+            self._choices_cache[cache_key] = choices_qs
+
+        # 1) pk
+        if isinstance(v, str):
+            for ch in choices_qs:
+                if str(ch.id) == v:
+                    return ch
+
+        # 2) value__iexact
+        if isinstance(v, str):
+            matches = [ch for ch in choices_qs if ch.value.lower() == v.lower()]
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                # بسیار نادر چون روی (attribute, value) کانسترینت یکتا داریم
+                raise serializers.ValidationError("ابهام در انتخاب گزینه (value تکراری).")
+
+        # 3) label__iexact
+        if isinstance(v, str):
+            matches = [ch for ch in choices_qs if (ch.label or "").lower() == v.lower()]
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                raise serializers.ValidationError("ابهام در انتخاب گزینه (label چندتایی).")
+
+        raise serializers.ValidationError("گزینه‌ی معتبر برای این خصیصه یافت نشد.")
+
+    def validate(self, attrs):
+        attr: Attribute = attrs["attribute"]
+        ptype = attr.property_type
+        v = attrs.get("value", None)
+
+        if ptype == Attribute.PropertyType.INT:
+            coerced = self._coerce_int(v)
+            attrs["value_int"] = coerced
+
+        elif ptype == Attribute.PropertyType.FLOAT:
+            coerced = self._coerce_float(v)
+            attrs["value_float"] = coerced
+
+        elif ptype == Attribute.PropertyType.STR:
+            # برای رشته، هر ورودی رو به str تبدیل کن؛ None مجاز نیست
+            if v is None:
+                raise serializers.ValidationError({"value": "برای نوع رشته مقدار لازم است."})
+            attrs["value_str"] = str(v)
+
+        elif ptype == Attribute.PropertyType.BOOL:
+            coerced = self._coerce_bool(v)
+            attrs["value_bool"] = coerced
+
+        elif ptype == Attribute.PropertyType.DATE:
+            coerced = self._coerce_date(v)
+            attrs["value_date"] = coerced
+
+        elif ptype == Attribute.PropertyType.CHOICE:
+            if v is None or (isinstance(v, str) and not v.strip()):
+                raise serializers.ValidationError({"value": "انتخاب گزینه الزامی است."})
+            choice_obj = self._resolve_choice(attr, v)
+            attrs["choice"] = choice_obj
+
+        else:
+            raise serializers.ValidationError({"attribute": "property_type نامعتبر است."})
+
+        # value ورودی فقط برای تصمیم‌گیری بود؛ حذفش می‌کنیم تا به DB نرسه
+        attrs.pop("value", None)
+        return attrs
+
+
+# ---------- Nested: Relation ----------
+
+class AssetRelationWriteSerializer(serializers.ModelSerializer):
+    relation = serializers.PrimaryKeyRelatedField(queryset=Relation.objects.all())
+    target_asset = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all())
+
+    class Meta:
+        model = AssetRelation
+        fields = ("relation", "target_asset", "start_date", "end_date", "note")
+
+    def validate(self, attrs):
+        st, en = attrs.get("start_date"), attrs.get("end_date")
+        if st and en and en < st:
+            raise serializers.ValidationError({"end_date": "نباید قبل از start_date باشد."})
+        return attrs
+
+
+# ---------- Wrapper: POST (append) / PUT (replace-all) ----------
+
+class AssetAttributeValueUpsertSerializer(serializers.Serializer):
+    asset = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all(), write_only=True)
+    attribute_values = AttributeValueInSerializer(many=True, required=False)
+    relations = AssetRelationWriteSerializer(many=True, required=False)
+
+    # --- ابزار ولیدیشن قوانین type_rules ---
+    def _validate_rules_and_counts(self, *, asset: Asset, incoming: list, replace_all: bool):
+        """
+        - asset.type_rules تعیین‌کننده‌ی مجاز بودن attribute و قوانین min/max/required/is_multi است.
+        - در POST: final_count = existing + incoming
+        - در PUT (replace_all): final_count = incoming (چون قبلش حذف می‌کنیم)
+        """
+        rules = {r.attribute_id: r for r in asset.type_rules.select_related("attribute")}
+        # گروه‌بندی ورودی‌ها بر اساس attribute
+        incoming_by_attr = defaultdict(list)
+        for item in incoming:
+            incoming_by_attr[item["attribute"].id].append(item)
+
+        # برای هر خصیصه‌ای که داده آمده:
+        for attr_id, items in incoming_by_attr.items():
+            rule = rules.get(attr_id)
+            if not rule:
+                raise serializers.ValidationError({"attribute_values": f"خصیصه‌ی {attr_id} برای این دارایی مجاز نیست."})
+
+            incoming_count = len(items)
+            if replace_all:
+                final_count = incoming_count
+            else:
+                existing_count = AssetAttributeValue.objects.filter(asset=asset, attribute_id=attr_id).count()
+                final_count = existing_count + incoming_count
+
+            # is_multi
+            if not rule.is_multi and final_count > 1:
+                raise serializers.ValidationError({
+                    "attribute_values": f"خصیصه‌ی {rule.attribute.title} تک‌مقداری است (final_count={final_count})."
+                })
+
+            # min/max و required
+            min_needed = max(1, rule.min_count) if rule.is_required else (rule.min_count or 0)
+            if final_count < min_needed:
+                raise serializers.ValidationError({
+                    "attribute_values": f"برای {rule.attribute.title} حداقل {min_needed} مقدار لازم است (final={final_count})."
+                })
+            if rule.max_count is not None and final_count > rule.max_count:
+                raise serializers.ValidationError({
+                    "attribute_values": f"برای {rule.attribute.title} حداکثر {rule.max_count} مقدار مجاز است (final={final_count})."
+                })
+
+        # همچنین می‌تونیم اطمینان بدهیم برای requiredهایی که اصلاً در ورودی نیامده‌اند،
+        # در POST جمع موجود+جدید حداقل یکی باشد. برای replace_all (PUT) باید صفر نشود.
+        required_rules = [r for r in rules.values() if r.is_required]
+        if replace_all:
+            # همه‌چیز را جایگزین می‌کنیم؛ پس برای requiredهایی که اصلاً در ورودی نیستند، خطا بده
+            for r in required_rules:
+                if r.attribute_id not in incoming_by_attr and (r.min_count or 1) > 0:
+                    raise serializers.ValidationError({
+                        "attribute_values": f"خصیصه‌ی اجباری {r.attribute.title} ارسال نشده است."
+                    })
+        else:
+            # در POST: اگر required است و موجودی صفر و در ورودی هم نیامده، خطا
+            for r in required_rules:
+                if r.attribute_id not in incoming_by_attr:
+                    existing_count = AssetAttributeValue.objects.filter(
+                        asset=asset, attribute_id=r.attribute_id
+                    ).count()
+                    if existing_count < max(1, r.min_count or 0):
+                        raise serializers.ValidationError({
+                            "attribute_values": f"برای {r.attribute.title} حداقل یک مقدار لازم است."
+                        })
+
+    # --- CREATE (POST: append) ---
     @transaction.atomic
     def create(self, validated_data):
-        attribute_values = validated_data.pop('attribute_values')
-        relations = validated_data.pop('relations')
-        asset_id = validated_data.pop('asset_id')
+        asset: Asset = validated_data["asset"]
+        owner = self.context.get("owner")
+        av_items = validated_data.get("attribute_values") or []
+        rel_items = validated_data.get("relations") or []
 
-        asset = Asset.objects.get(id=asset_id)
-        for attribute_value in attribute_values:
-            obj = AssetAttributeValue.objects.create(asset=asset, **attribute_value)
+        # قوانین را بر اساس append چک کن
+        self._validate_rules_and_counts(asset=asset, incoming=av_items, replace_all=False)
 
-        for relation in relations:
-            AssetRelation.objects.create(source_asset=asset, **relation)
+        # ساخت مقادیر
+        values_to_create = []
+        for item in av_items:
+            values_to_create.append(AssetAttributeValue(
+                asset=asset,
+                attribute=item["attribute"],
+                value_int=item.get("value_int"),
+                value_float=item.get("value_float"),
+                value_str=item.get("value_str"),
+                value_bool=item.get("value_bool"),
+                value_date=item.get("value_date"),
+                choice=item.get("choice"),
+                status=item.get("status", AssetAttributeValue.Status.REGISTERED),
+                owner=owner,
+            ))
+        if values_to_create:
+            AssetAttributeValue.objects.bulk_create(values_to_create)
 
-        return obj
+        # ساخت روابط
+        rel_to_create = []
+        for r in rel_items:
+            rel_to_create.append(AssetRelation(
+                relation=r["relation"],
+                source_asset=asset,
+                target_asset=r["target_asset"],
+                start_date=r.get("start_date"),
+                end_date=r.get("end_date"),
+                note=r.get("note"),
+                owner=owner,
+            ))
+        if rel_to_create:
+            AssetRelation.objects.bulk_create(rel_to_create)
+
+        return {
+            "created_values": len(values_to_create),
+            "created_relations": len(rel_to_create),
+        }
+
+    # --- UPDATE (PUT: replace-all) ---
+    @transaction.atomic
+    def update(self, asset: Asset, validated_data):
+        owner = self.context.get("owner")
+        av_items = validated_data.get("attribute_values") or []
+        rel_items = validated_data.get("relations") or []
+
+        # قوانین را بر اساس replace-all چک کن
+        self._validate_rules_and_counts(asset=asset, incoming=av_items, replace_all=True)
+
+        # جایگزینی کامل AAVها
+        AssetAttributeValue.objects.filter(asset=asset).delete()
+        values_to_create = []
+        for item in av_items:
+            values_to_create.append(AssetAttributeValue(
+                asset=asset,
+                attribute=item["attribute"],
+                value_int=item.get("value_int"),
+                value_float=item.get("value_float"),
+                value_str=item.get("value_str"),
+                value_bool=item.get("value_bool"),
+                value_date=item.get("value_date"),
+                choice=item.get("choice"),
+                status=item.get("status", AssetAttributeValue.Status.REGISTERED),
+                owner=owner,
+            ))
+        if values_to_create:
+            AssetAttributeValue.objects.bulk_create(values_to_create)
+
+        # جایگزینی کامل روابط (از این دارایی به دیگران)
+        AssetRelation.objects.filter(source_asset=asset).delete()
+        rel_to_create = []
+        for r in rel_items:
+            rel_to_create.append(AssetRelation(
+                relation=r["relation"],
+                source_asset=asset,
+                target_asset=r["target_asset"],
+                start_date=r.get("start_date"),
+                end_date=r.get("end_date"),
+                note=r.get("note"),
+                owner=owner,
+            ))
+        if rel_to_create:
+            AssetRelation.objects.bulk_create(rel_to_create)
+
+        return {
+            "replaced_values": len(values_to_create),
+            "replaced_relations": len(rel_to_create),
+        }
+
 
 
 def render_aav_value(aav: AssetAttributeValue):
