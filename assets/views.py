@@ -304,3 +304,51 @@ class RelationDetailView(APIView):
         relation.delete()
         return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)
 
+
+
+class AttributeChoiceListCreateView(APIView):
+    queryset = AttributeChoice.objects.all()
+
+    def get(self, request):
+        qs = AttributeChoice.objects.select_related("attribute")
+        serializer = AttributeChoiceSerializer(qs, many=True)
+        return CustomResponse.success(message=get_all_data(), data=serializer.data)
+
+    @extend_schema(request=AttributeChoiceSerializer, responses=AttributeChoiceSerializer)
+    def post(self, request):
+        serializer = AttributeChoiceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            return CustomResponse.success(message=create_data(), data=serializer.data,
+                                          status=status.HTTP_201_CREATED)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors,
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+
+class AttributeChoiceDetailView(APIView):
+    queryset = AttributeChoice.objects.all()
+
+    def get_object(self, pk):
+        try:
+            return AttributeChoice.objects.get(pk=pk)
+        except AttributeChoice.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد', status=status.HTTP_404_NOT_FOUND
+                                        )
+    def get(self, request, pk):
+        obj = self.get_object(pk)
+        serializer = AttributeChoiceSerializer(obj)
+        return CustomResponse.success(message=get_single_data(), data=serializer.data)
+
+    @extend_schema(request=AttributeChoiceSerializer, responses=AttributeChoiceSerializer)
+    def put(self, request, pk):
+        obj = self.get_object(pk)
+        serializer = AttributeChoiceSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse.success(message=update_data(), data=serializer.data)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
+
+    def delete(self, request, pk):
+        obj = self.get_object(pk)
+        obj.delete()
+        return CustomResponse.success(message=delete_data(), status=status.HTTP_204_NO_CONTENT)

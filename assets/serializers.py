@@ -243,7 +243,22 @@ class AssetValuesResponseSerializer(serializers.Serializer):
         return AssetRelationReadSerializer(relations_qs, many=True).data
 
 
+class AttributeChoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AttributeChoice
+        fields = ("id", "attribute", "value", "label", "created_at", "updated_at")
 
+    def validate(self, attrs):
+        attribute = attrs.get("attribute") or getattr(self.instance, "attribute", None)
+        value = attrs.get("value") or getattr(self.instance, "value", None)
+
+        if attribute and value:
+            qs = AttributeChoice.objects.filter(attribute=attribute, value__iexact=value)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({"value": "این مقدار برای این خصیصه از قبل وجود دارد."})
+        return attrs
 
 
 
