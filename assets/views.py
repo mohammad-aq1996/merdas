@@ -123,9 +123,9 @@ class AssetListCreateView(APIView):
         serializer = AssetReadSerializer(assets, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
-    @extend_schema(responses=AssetReadSerializer, request=AssetCreateSerializer)
+    @extend_schema(responses=AssetReadSerializer, request=AssetCreateUpdateSerializer)
     def post(self, request):
-        serializer = AssetCreateSerializer(data=request.data)
+        serializer = AssetCreateUpdateSerializer(data=request.data)
         if serializer.is_valid():
             serializer = serializer.save(owner=request.user)
             output_serializer = AssetReadSerializer(serializer)
@@ -145,13 +145,13 @@ class AssetDetailView(APIView):
         serializer = AssetReadSerializer(asset)
         return CustomResponse.success(message=get_single_data(), data=serializer.data)
 
-    @extend_schema(responses=AssetReadSerializer, request=AssetCreateSerializer)
+    @extend_schema(responses=AssetReadSerializer, request=AssetCreateUpdateSerializer)
     def put(self, request, pk):
         try:
             asset = Asset.objects.get(pk=pk)
         except Asset.DoesNotExist:
             return CustomResponse.error(message="داده مورد نظر یافت نشد", status=status.HTTP_404_NOT_FOUND)
-        serializer = AssetCreateSerializer(asset, data=request.data)
+        serializer = AssetCreateUpdateSerializer(asset, data=request.data)
         if serializer.is_valid():
             serializer = serializer.save(owner=request.user)
             output_serializer = AssetReadSerializer(serializer)

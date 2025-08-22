@@ -42,33 +42,102 @@ class AssetTypeAttributeSerializer(serializers.ModelSerializer):
         return AttributeSerializer(obj.attribute).data
 
 
-class AssetCreateSerializer(serializers.ModelSerializer):
-    attributes = AssetTypeAttributeSerializer(many=True)
+class AssetTypeAttributeWriteSerializer(serializers.ModelSerializer):
+    attribute = serializers.PrimaryKeyRelatedField(queryset=Attribute.objects.all())
+
+    class Meta:
+        model = AssetTypeAttribute
+        fields = ("attribute", "is_required", "is_multi", "min_count", "max_count")
+
+    def validate(self, attrs):
+        is_multi = attrs.get("is_multi", False)
+        min_count = attrs.get("min_count", 0) or 0
+        max_count = attrs.get("max_count", None)
+
+        # min/max منطقی
+        if min_count < 0:
+            raise serializers.ValidationError({"min_count": "نمی‌تواند منفی باشد."})
+        if max_count is not None and max_count < 1:
+            raise serializers.ValidationError({"max_count": "اگر تعیین شود باید ≥ 1 باشد."})
+        if max_count is not None and min_count > max_count:
+            raise serializers.ValidationError({"max_count": "باید ≥ min_count باشد."})
+
+        # اگر تک‌مقداری، min/max را محدود کن
+        if not is_multi:
+            if min_count > 1:
+                raise serializers.ValidationError({"min_count": "برای فیلد تک‌مقداری باید ≤ 1 باشد."})
+            if max_count is not None and max_count > 1:
+                raise serializers.ValidationError({"max_count": "برای فیلد تک‌مقداری باید ≤ 1 باشد."})
+
+        return attrs
+
+
+class AssetCreateUpdateSerializer(serializers.ModelSerializer):
+    attributes = AssetTypeAttributeWriteSerializer(many=True, required=False)
 
     class Meta:
         model = Asset
-        fields = ('title',
-                  'asset_type',
-                  'attributes',)
+        fields = ("title", "asset_type", "code", "attributes")
+
+    def _validate_unique_attributes(self, attrs_list):
+        attr_ids = [str(item["attribute"].pk) for item in attrs_list]
+        if len(attr_ids) != len(set(attr_ids)):
+            raise serializers.ValidationError({"attributes": "خصیصه‌های تکراری مجاز نیست."})
 
     def create(self, validated_data):
-        attributes = validated_data.pop('attributes')
-        asset = Asset.objects.create(**validated_data)
-        for field in attributes:
-            AssetTypeAttribute.objects.create(asset=asset, **field)
+        attrs_list = validated_data.pop("attributes", [])
+        owner = validated_data.pop("owner", None)  # از serializer.save(owner=request.user) می‌آد
+
+        if attrs_list:
+            self._validate_unique_attributes(attrs_list)
+
+        with transaction.atomic():
+            asset = Asset.objects.create(owner=owner, **validated_data)
+
+            rules = [
+                AssetTypeAttribute(
+                    asset=asset,
+                    attribute=item["attribute"],
+                    is_required=item.get("is_required", False),
+                    is_multi=item.get("is_multi", False),
+                    min_count=item.get("min_count", 0) or 0,
+                    max_count=item.get("max_count"),
+                    owner=owner,
+                )
+                for item in attrs_list
+            ]
+            if rules:
+                AssetTypeAttribute.objects.bulk_create(rules, ignore_conflicts=False)
+
         return asset
 
+    @transaction.atomic
     def update(self, instance, validated_data):
-        attributes = validated_data.pop('attributes')
+        attrs_list = validated_data.pop("attributes", None)  # اگر نیاد، دست نزن
+        owner = validated_data.pop("owner", None)
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+
         instance.save()
 
-        instance.type_rules.all().delete()
-
-        for field in attributes:
-            AssetTypeAttribute.objects.create(asset=instance, **field)
+        if attrs_list is not None:
+            self._validate_unique_attributes(attrs_list)
+            instance.type_rules.all().delete()
+            rules = [
+                AssetTypeAttribute(
+                    asset=instance,
+                    attribute=item["attribute"],
+                    is_required=item.get("is_required", False),
+                    is_multi=item.get("is_multi", False),
+                    min_count=item.get("min_count", 0) or 0,
+                    max_count=item.get("max_count"),
+                    owner=owner or instance.owner,
+                )
+                for item in attrs_list
+            ]
+            if rules:
+                AssetTypeAttribute.objects.bulk_create(rules, ignore_conflicts=False)
 
         return instance
 
