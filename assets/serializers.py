@@ -162,10 +162,85 @@ class AssetAttributeValueSerializer(serializers.Serializer):
         return obj
 
 
+def render_aav_value(aav: AssetAttributeValue):
+    if aav.choice_id:
+        return aav.choice.label or aav.choice.value
+    if aav.value_int is not None:
+        return aav.value_int
+    if aav.value_float is not None:
+        return aav.value_float
+    if aav.value_bool is not None:
+        return aav.value_bool
+    if aav.value_date is not None:
+        return aav.value_date.isoformat()
+    return aav.value_str
 
 
+class AssetRelationReadSerializer(serializers.ModelSerializer):
+    relation = serializers.SerializerMethodField()
+    target_asset = serializers.CharField(source="target_asset.title")
+
+    class Meta:
+        model = AssetRelation
+        fields = ("relation", "target_asset", "start_date", "end_date")
+
+    def get_relation(self, obj):
+        return obj.relation.name or obj.relation.key
 
 
+class AssetValuesResponseSerializer(serializers.Serializer):
+    """
+    ورودی: instance = Asset
+    context:
+      - values: QuerySet[AssetAttributeValue] با select_related کامل
+      - relations: QuerySet[AssetRelation] فیلتر شده برای همون Asset
+      - ordering: "category" یا "attribute" (اختیاری)
+      - category_label_field: "key" یا "value" (اختیاری، پیش‌فرض key)
+    """
+    asset_title = serializers.SerializerMethodField()
+    attribute_values = serializers.SerializerMethodField()
+    relations = serializers.SerializerMethodField()
+
+    def get_asset_title(self, asset):
+        return asset.title
+
+    def get_attribute_values(self, asset):
+        from collections import OrderedDict, defaultdict
+
+        values_qs = self.context.get("values")
+        if values_qs is None:
+            return []
+
+        cat_label_field = self.context.get("category_label_field", "key")
+        # tmp_bucket: cat_label -> attr_title -> [values]
+        tmp_bucket = defaultdict(lambda: defaultdict(list))
+
+        for aav in values_qs:
+            category = aav.attribute.category
+            if category:
+                cat_label = getattr(category, cat_label_field, None) or category.key
+            else:
+                cat_label = "uncategorized"
+
+            attr_title = aav.attribute.title
+            tmp_bucket[cat_label][attr_title].append(render_aav_value(aav))
+
+        # به فرمت نهایی تبدیل کن: [ {cat: [ {attr: val}, ... ]}, ... ]
+        grouped = OrderedDict()
+        for cat_label, attr_map in tmp_bucket.items():
+            items = []
+            for attr_title, values in attr_map.items():
+                val = values[0] if len(values) == 1 else values
+                items.append({attr_title: val})
+            grouped[cat_label] = items
+
+        return [{cat: items} for cat, items in grouped.items()]
+
+    def get_relations(self, asset):
+        relations_qs = self.context.get("relations")
+        if relations_qs is None:
+            return []
+        return AssetRelationReadSerializer(relations_qs, many=True).data
 
 
 

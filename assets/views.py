@@ -217,10 +217,35 @@ class AssetAttributesView(APIView):
 }
 """
 class AssetAttributeValueView(APIView):
-    queryset = Asset.objects.all()
+    queryset = AssetAttributeValue.objects.all()
 
-    def get(self, request, pk):
-        ...
+    def get(self, request, asset_id):
+        try:
+            asset = Asset.objects.get(pk=asset_id)
+        except Asset.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد', status=status.HTTP_404_NOT_FOUND)
+
+        values_qs = (
+            AssetAttributeValue.objects
+            .filter(asset=asset)
+            .select_related("attribute", "attribute__category", "choice")
+        )
+
+        relations_qs = (
+            AssetRelation.objects
+            .filter(source_asset=asset)
+            .select_related("relation", "target_asset")
+            .order_by("relation__key", "target_asset__title")
+        )
+
+        serializer = AssetValuesResponseSerializer(
+            instance=asset,
+            context={
+                "values": values_qs,
+                "relations": relations_qs,
+            }
+        )
+        return CustomResponse.success(message=get_single_data(), data=serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(responses=AssetAttributeValueSerializer, request=AssetAttributeValueSerializer)
     def post(self, request):
