@@ -687,8 +687,41 @@ class AttributeChoiceSerializer(serializers.ModelSerializer):
         return attrs
 
 
+# --------------- Upload --------------------
 
 
+class CsvUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    has_header = serializers.BooleanField(required=False, default=True)
+    delimiter = serializers.CharField(required=False, default=",", max_length=4)
+
+    def validate(self, attrs):
+        f = attrs["file"]
+        if not f.name.lower().endswith((".csv", ".txt")):
+            raise serializers.ValidationError({"file": "فقط فایل CSV/TXT مجاز است."})
+        return attrs
+
+
+class CsvMappingSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    asset_column = serializers.CharField()
+    asset_lookup_field = serializers.ChoiceField(choices=[("id","id"),("code","code"),("title","title")], default="id")
+    attribute_map = serializers.DictField(
+        child=serializers.UUIDField(), allow_empty=False
+    )
+
+
+class CsvEditRowsSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    # rows: [{"row_index": 12, "values": {"colA":"...", "colB":"..."}}]
+    rows = serializers.ListField(
+        child=serializers.DictField(), allow_empty=False
+    )
+
+
+class CsvCommitSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    mode = serializers.ChoiceField(choices=[("append","append"),("replace","replace")], default="append")
 
 
 

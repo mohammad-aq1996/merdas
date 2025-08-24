@@ -64,6 +64,7 @@ class Asset(BaseModel):
     title = models.CharField(max_length=250)
     code = models.CharField(max_length=120, unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_registered = models.BooleanField(default=True, db_index=True)
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
@@ -156,4 +157,68 @@ class AssetRelation(BaseModel):
 
     def __str__(self):
         return f"{self.relation.key}: {self.source_asset_id} -> {self.target_asset_id}"
+
+# ---------- Upload CSB ------------------
+
+
+class ImportSession(BaseModel):
+    class State(models.TextChoices):
+        UPLOADED = "uploaded", "Uploaded"
+        MAPPED   = "mapped",   "Mapped"
+        EDITED   = "edited",   "Edited"
+        COMMITTED= "committed","Committed"
+
+    file = models.FileField(upload_to="imports/%Y/%m/%d/")
+    filename = models.CharField(max_length=255)
+    has_header = models.BooleanField(default=True)
+    delimiter = models.CharField(max_length=4, default=",")
+    total_rows = models.PositiveIntegerField(default=0)
+    headers = models.JSONField(default=list)        # ["col1","col2",...]
+    preview_rows = models.JSONField(default=list)   # [ {...}, ... ] 10 ردیف اول به شکل dict
+
+    # mapping
+    asset_column = models.CharField(max_length=255, null=True, blank=True)
+    asset_lookup_field = models.CharField(          # "id" | "code" | "title"
+        max_length=20, default="title"
+    )
+    attribute_map = models.JSONField(default=dict)  # {"col_name": "attribute_uuid", ...}
+
+    state = models.CharField(max_length=16, choices=State.choices, default=State.UPLOADED)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+
+
+class ImportIssue(BaseModel):
+    class Level(models.TextChoices):
+        ERROR = "error", "Error"
+        WARN  = "warn", "Warn"
+
+    session = models.ForeignKey(ImportSession, on_delete=models.CASCADE, related_name="issues")
+    row_index = models.PositiveIntegerField()  # 1-based index (بدون هدر)
+    asset_ref = models.CharField(max_length=255, blank=True, null=True)  # مقدار ستون asset در CSV
+    asset = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.SET_NULL)
+
+    attribute = models.ForeignKey(Attribute, null=True, blank=True, on_delete=models.SET_NULL)
+    level = models.CharField(max_length=8, choices=Level.choices, default=Level.ERROR)
+    code = models.CharField(max_length=64)   # e.g., "REQUIRED_MISSING", "TYPE_INVALID", "CHOICE_NOT_FOUND", "MIN_MAX"
+    message = models.TextField()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

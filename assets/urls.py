@@ -21,4 +21,9 @@ urlpatterns = [
 
     path('attribute/value/', AssetAttributeValueView.as_view(), name='asset_attribute_value_list_create'),
     path('attribute/value/<uuid:asset_id>', AssetAttributeValueView.as_view(), name='asset_attribute_value_list_create'),
+
+    path('csv/upload/preview/', CsvUploadView.as_view(), name='csv_upload'),
+    path('csv/mapping/', CsvMappingView.as_view(), name='csv_mapping'),
+    path('csv/edited/', CsvEditsView.as_view(), name='csv_edited'),
+    path('csv/commit/', CsvCommitView.as_view(), name='csv_commit'),
 ]
