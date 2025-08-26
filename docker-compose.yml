@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  merdas_db:
     image: postgres:17.4
     container_name: postgresql
     restart: always
@@ -24,12 +24,12 @@ services:
       - redis_data:/data
     command: redis-server --save 60 1 --loglevel warning
 
-  web:
+  merdas_web:
     build: .
     container_name: merdas
     restart: always
     depends_on:
-      - db
+      - merdas_db
       - redis
     env_file:
       - back-env
@@ -42,3 +42,4 @@ services:
 volumes:
   pg_data:
   redis_data:
+
