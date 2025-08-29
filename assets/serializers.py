@@ -15,7 +15,7 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
 
 
 class AttributeSerializer(serializers.ModelSerializer):
-    category_value = serializers.CharField(source='category.value')
+    category_value = serializers.CharField(source='category.value', read_only=True)
 
     class Meta:
         model = Attribute
