@@ -7,8 +7,8 @@ from core.models import BaseModel
 # ---------- Attribute Dictionary ----------
 
 class AttributeCategory(BaseModel):
-    key = models.CharField(max_length=100, unique=True)
-    value = models.CharField(max_length=200)
+    title_en = models.CharField(max_length=100, unique=True)
+    title = models.CharField(max_length=200)
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
