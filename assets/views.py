@@ -192,7 +192,7 @@ class AssetAttributesView(APIView):
                          'is_required': type_rule.is_required,
                          'is_multi': type_rule.is_multi,
                          'id': type_rule.attribute.id}
-            cat_label = category.value if category else "uncategorized"
+            cat_label = category.title if category else "uncategorized"
             result.setdefault(cat_label, []).append(attr_data)
 
         return CustomResponse.success(message=get_all_data(), data=result)
