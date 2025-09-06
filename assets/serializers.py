@@ -637,14 +637,14 @@ class AssetValuesResponseSerializer(serializers.Serializer):
         if values_qs is None:
             return []
 
-        cat_label_field = self.context.get("category_label_field", "key")
+        cat_label_field = self.context.get("category_label_field", "title")
         # tmp_bucket: cat_label -> attr_title -> [values]
         tmp_bucket = defaultdict(lambda: defaultdict(list))
 
         for aav in values_qs:
             category = aav.attribute.category
             if category:
-                cat_label = getattr(category, cat_label_field, None) or category.key
+                cat_label = getattr(category, cat_label_field, None) or category.title
             else:
                 cat_label = "uncategorized"
 
