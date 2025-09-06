@@ -237,7 +237,7 @@ class AssetAttributeValueView(APIView):
             AssetRelation.objects
             .filter(source_asset=asset)
             .select_related("relation", "target_asset")
-            .order_by("relation__key", "target_asset__title")
+            .order_by("relation__title", "target_asset__title")
         )
 
         serializer = AssetValuesResponseSerializer(
