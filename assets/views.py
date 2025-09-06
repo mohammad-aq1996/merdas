@@ -536,12 +536,14 @@ class CsvCommitView(APIView):
 
             # پیدا کردن دارایی
             try:
-                if lookup_field == "id":
-                    asset = Asset.objects.get(pk=asset_ref)
-                elif lookup_field == "code":
-                    asset = Asset.objects.get(code=asset_ref)
-                else:
-                    asset = Asset.objects.get(title=asset_ref)
+                asset = Asset.objects.get(title=asset_ref)
+
+                # if lookup_field == "id":
+                #     asset = Asset.objects.get(pk=asset_ref)
+                # elif lookup_field == "code":
+                #     asset = Asset.objects.get(code=asset_ref)
+                # else:
+                #     asset = Asset.objects.get(title=asset_ref)
 
             except Asset.DoesNotExist:
                 ImportIssue.objects.create(
