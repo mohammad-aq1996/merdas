@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 
 from accounts.models import User
 from core.models import BaseModel
@@ -15,6 +16,8 @@ class AttributeCategory(BaseModel):
     def __str__(self):
         return self.title
 
+def _empty_list():
+    return []
 
 class Attribute(BaseModel):
     class PropertyType(models.TextChoices):
@@ -31,7 +34,12 @@ class Attribute(BaseModel):
     category = models.ForeignKey(AttributeCategory, null=True, blank=True,
                                  on_delete=models.SET_NULL, related_name="attributes")
 
-    choices = models.TextField(blank=True, null=True)
+    choices = ArrayField(
+        base_field=models.CharField(max_length=150),
+        default=_empty_list,  # همیشه از callable استفاده کن
+        blank=True,
+        help_text="لیست برچسب‌ها"
+    )
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):

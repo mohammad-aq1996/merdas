@@ -16,6 +16,11 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
 
 class AttributeSerializer(serializers.ModelSerializer):
     category_value = serializers.CharField(source='category.title', read_only=True)
+    choices = serializers.ListField(
+        child=serializers.CharField(max_length=150),
+        allow_empty=True,
+        required=False
+    )
 
     class Meta:
         model = Attribute
@@ -28,6 +33,13 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'category',
                   'category_value',
                   'choices')
+        
+    def validate_choices(self, value):
+        cleaned = [v.strip() for v in value if v.strip()]
+
+        if len(cleaned) != len(set(cleaned)):
+            raise serializers.ValidationError("مقادیر تکراری مجاز نیست.")
+        return cleaned
 
 
 class AssetTypeAttributeSerializer(serializers.ModelSerializer):
