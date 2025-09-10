@@ -26,7 +26,7 @@ class AttributeCategoryListCreateView(APIView):
     def post(self, request):
         serializer = AttributeCategorySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(owner=request.user)
             return CustomResponse.success(message=create_data(), data=serializer.data)
         return CustomResponse.error(message="ناموفق", errors=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
