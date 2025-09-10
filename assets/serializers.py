@@ -765,9 +765,20 @@ from .models import Asset, AssetUnit, Attribute, AssetTypeAttribute, AssetAttrib
 
 
 class AssetUnitSerializer(serializers.ModelSerializer):
+    asset = serializers.CharField(source="asset.title", read_only=True)
+    owner = serializers.CharField(source="owner.username", read_only=True)
+
     class Meta:
         model = AssetUnit
-        fields = '__all__'
+        fields = ('id',
+                  'created_at',
+                  'updated_at',
+                  'label',
+                  'asset',
+                  'code',
+                  'is_active',
+                  'is_registered',
+                  'owner')
 
 
 def parse_choices(attr: Attribute) -> set:
