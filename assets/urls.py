@@ -27,6 +27,6 @@ urlpatterns = [
 
 
 
-    path('<uuid:asset_id>/units', AssetUnitCreateAPIView.as_view()),  # POST → ساخت یک نمونه + EAV
+    path('<uuid:asset_id>/units/', AssetUnitCreateAPIView.as_view()),  # POST → ساخت یک نمونه + EAV
 
 ]
