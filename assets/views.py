@@ -228,27 +228,28 @@ class AssetAttributesView(APIView):
 class AssetAttributeValueView(APIView):
     queryset = AssetAttributeValue.objects.all()
 
-    def get(self, request, asset_id):
+    def get(self, request, unit_id):
         try:
-            asset = Asset.objects.get(pk=asset_id)
-        except Asset.DoesNotExist:
-            return CustomResponse.error('داده مورد نظر یافت نشد', status=status.HTTP_404_NOT_FOUND)
+            unit = AssetUnit.objects.get(pk=unit_id)
+        except AssetUnit.DoesNotExist:
+            return CustomResponse.error('نمونه پیدا نشد', status=status.HTTP_404_NOT_FOUND)
 
         values_qs = (
             AssetAttributeValue.objects
-            .filter(asset=asset)
-            .select_related("attribute", "attribute__category", "choice")
+            .filter(unit=unit)
+            .select_related("attribute", "attribute__category")
+            .order_by("attribute__category__title", "attribute__title")
         )
 
         relations_qs = (
             AssetRelation.objects
-            .filter(source_asset=asset)
+            .filter(source_asset=unit.asset)   # همچنان روی Asset
             .select_related("relation", "target_asset")
             .order_by("relation__key", "target_asset__title")
         )
 
-        serializer = AssetValuesResponseSerializer(
-            instance=asset,
+        serializer = AssetUnitDetailSerializer(
+            instance=unit,
             context={
                 "values": values_qs,
                 "relations": relations_qs,
@@ -589,21 +590,32 @@ class CsvCommitView(APIView):
         return CustomResponse.success(message="پردازش CSV انجام شد", data=data)
 
 
+"""
+{
+  "asset_id": "862656ad-2864-4767-ba05-ff34db20aaa4",
+  "label": "printer html22",
+  "attributes": {
+    "9f098939-16f0-40a4-b953-251da5874fca": "ahmad",
+    "7296cc24-eee4-4b49-a87a-72fc47e6435a": "22"
+  }
+}
+"""
+class AssetUnitCreateAPIView(APIView):
+    queryset = Asset.objects.all()
 
+    @extend_schema(request=AssetUnitCreateSerializer)
+    def post(self, request, asset_id: int):
+        payload = dict(request.data)
+        payload['asset_id'] = asset_id
+        s = AssetUnitCreateSerializer(data=payload)
+        s.is_valid(raise_exception=True)
+        s.save(owner=request.user)
+        return CustomResponse.success(create_data())
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def get(self, request, asset_id):
+        qs = AssetUnit.objects.filter(asset_id=asset_id)
+        s = AssetUnitSerializer(qs, many=True)
+        return CustomResponse.success(get_all_data(), data=s.data)
 
 
 

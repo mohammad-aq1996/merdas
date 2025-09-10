@@ -63,6 +63,26 @@ class Asset(BaseModel):
         return f"[{self.asset_type}] {self.title}"
 
 
+class AssetUnit(BaseModel):
+    """
+    هر ردیف = یک «نمونه» از Asset (مثلاً یکی از پرینترها)
+    """
+    asset = models.ForeignKey('Asset', on_delete=models.CASCADE, related_name='units')
+    label = models.CharField(max_length=120, null=True, blank=True, db_index=True)  # مثل "PRN-1" یا "HP-001"
+    code  = models.CharField(max_length=120, null=True, blank=True, unique=True)    # اگر code نمی‌دهی، خالی بگذار
+    is_active = models.BooleanField(default=True)
+    is_registered = models.BooleanField(default=True, db_index=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['asset']),
+            models.Index(fields=['label']),
+        ]
+
+    def __str__(self): return f"{self.asset.title} / {self.label or self.code or self.id}"
+
+
 class AssetTypeAttribute(BaseModel):
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="type_rules")
     attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name="type_rules")
@@ -85,6 +105,8 @@ class AssetAttributeValue(BaseModel):
         UNREGISTERED = 'unregistered', 'رجیستر نشده'
 
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="values")
+    unit  = models.ForeignKey('AssetUnit', on_delete=models.CASCADE, null=True, blank=True, related_name='values')
+
     attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name="values")
 
     # ستون‌های نوع‌دار — فقط یکی باید پر باشد (با CheckConstraint سطح DB)

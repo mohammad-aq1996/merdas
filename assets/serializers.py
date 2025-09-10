@@ -326,9 +326,9 @@ class AttributeValueInSerializer(serializers.Serializer):
 
         # کش لیست choices این attribute
         choices_qs = self._choices_cache.get(cache_key)
-        if choices_qs is None:
-            choices_qs = list(AttributeChoice.objects.filter(attribute_id=attr_id))
-            self._choices_cache[cache_key] = choices_qs
+        # if choices_qs is None:
+        #     choices_qs = list(AttributeChoice.objects.filter(attribute_id=attr_id))
+        #     self._choices_cache[cache_key] = choices_qs
 
         # 1) pk
         if isinstance(v, str):
@@ -587,8 +587,8 @@ class AssetAttributeValueUpsertSerializer(serializers.Serializer):
 
 
 def render_aav_value(aav: AssetAttributeValue):
-    if aav.choice_id:
-        return aav.choice.label or aav.choice.value
+    # if aav.choice_id:
+    #     return aav.choice.label or aav.choice.value
     if aav.value_int is not None:
         return aav.value_int
     if aav.value_float is not None:
@@ -667,6 +667,53 @@ class AssetValuesResponseSerializer(serializers.Serializer):
         return AssetRelationReadSerializer(relations_qs, many=True).data
 
 
+class AssetUnitDetailSerializer(serializers.Serializer):
+    unit_id = serializers.IntegerField(source="id")
+    unit_label = serializers.CharField(source="label", allow_null=True)
+    unit_code = serializers.CharField(source="code", allow_null=True)
+    asset_title = serializers.CharField(source="asset.title")
+
+    attribute_values = serializers.SerializerMethodField()
+    relations = serializers.SerializerMethodField()
+
+    def get_attribute_values(self, unit):
+        from collections import OrderedDict, defaultdict
+
+        values_qs = self.context.get("values")
+        if not values_qs:
+            return []
+
+        cat_label_field = self.context.get("category_label_field", "title")
+
+        tmp_bucket = defaultdict(lambda: defaultdict(list))
+
+        for aav in values_qs:
+            category = aav.attribute.category
+            if category:
+                cat_label = getattr(category, cat_label_field, None) or category.title
+            else:
+                cat_label = "uncategorized"
+
+            attr_title = aav.attribute.title
+            tmp_bucket[cat_label][attr_title].append(render_aav_value(aav))
+
+        grouped = OrderedDict()
+        for cat_label, attr_map in tmp_bucket.items():
+            items = []
+            for attr_title, values in attr_map.items():
+                val = values[0] if len(values) == 1 else values
+                items.append({attr_title: val})
+            grouped[cat_label] = items
+
+        return [{cat: items} for cat, items in grouped.items()]
+
+    def get_relations(self, unit):
+        relations_qs = self.context.get("relations")
+        if not relations_qs:
+            return []
+        return AssetRelationReadSerializer(relations_qs, many=True).data
+
+
 # --------------- Upload --------------------
 
 
@@ -704,6 +751,154 @@ class CsvCommitSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(choices=[("append","append"),("replace","replace")], default="append")
 
 
+# ***********************************************************************************************************************
+
+
+# serializers.py
+from rest_framework import serializers
+from django.db import transaction
+from datetime import datetime
+import json
+
+from .models import Asset, AssetUnit, Attribute, AssetTypeAttribute, AssetAttributeValue
+
+
+class AssetUnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssetUnit
+        fields = '__all__'
+
+
+def parse_choices(attr: Attribute) -> set:
+    if not attr.choices: return set()
+    s = attr.choices.strip()
+    try:
+        data = json.loads(s)
+        if isinstance(data, list):
+            return set(map(lambda x: str(x).strip(), data))
+    except Exception:
+        pass
+    parts = []
+    for line in s.splitlines():
+        parts += line.split(',')
+    return set(p.strip() for p in parts if p.strip())
+
+def to_bool(v):
+    if isinstance(v, bool): return v
+    if isinstance(v, (int, float)): return bool(v)
+    return str(v).strip().lower() in ('1','true','t','yes','y','on','ok','✔','✓')
+
+class AssetUnitCreateSerializer(serializers.Serializer):
+    asset_id   = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all(), source='asset')
+    label      = serializers.CharField(required=False, allow_blank=True)
+    code       = serializers.CharField(required=False, allow_blank=True)
+    attributes = serializers.DictField(child=serializers.JSONField(), required=True)
+    # مثال attributes: {"12":"HP", "13":35, "16":["duplex","wifi"]}
+
+    def validate(self, data):
+        asset: Asset = data['asset']
+        attrs = data['attributes'] or {}
+
+        # قوانین همین Asset (required/is_multi/min/max)
+        rules_qs = (AssetTypeAttribute.objects
+                    .select_related('attribute')
+                    .filter(asset=asset))
+        if not rules_qs.exists():
+            raise serializers.ValidationError("برای این دارایی هیچ قانون خصیصه‌ای تعریف نشده.")
+
+        rules = {str(r.attribute_id): r for r in rules_qs}
+        required_ids = {str(r.attribute_id) for r in rules_qs if r.is_required}
+
+        # required → باید در ورودی باشد
+        missing = required_ids - set(attrs.keys())
+        if missing:
+            raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+
+        # هیچ خصیصهٔ خارج از rule نباشد
+        invalid = [k for k in attrs.keys() if k not in rules]
+        if invalid:
+            raise serializers.ValidationError({"attributes": f"attribute_id نامعتبر: {invalid}"})
+
+        # تایپ/چویس‌ها
+        for attr_id, val in attrs.items():
+            r = rules[attr_id]
+            a = r.attribute
+            p = a.property_type
+
+            if p == Attribute.PropertyType.INT:
+                try: int(val)
+                except: raise serializers.ValidationError({attr_id: "باید عدد صحیح باشد"})
+            elif p == Attribute.PropertyType.FLOAT:
+                try: float(val)
+                except: raise serializers.ValidationError({attr_id: "باید عدد اعشاری باشد"})
+            elif p == Attribute.PropertyType.BOOL:
+                _ = to_bool(val)
+            elif p == Attribute.PropertyType.DATE:
+                try: datetime.strptime(str(val), "%Y-%m-%d")
+                except: raise serializers.ValidationError({attr_id: "تاریخ باید YYYY-MM-DD باشد"})
+            elif p == Attribute.PropertyType.CHOICE:
+                allowed = parse_choices(a)
+                if r.is_multi:
+                    if not isinstance(val, (list, tuple)):
+                        raise serializers.ValidationError({attr_id: "این خصیصه چندمقداری است؛ باید لیست بدهید"})
+                    s = set(map(lambda x: str(x).strip(), val))
+                    if not s.issubset(allowed):
+                        raise serializers.ValidationError({attr_id: f"مقدار نامعتبر. مجاز: {sorted(allowed)}"})
+                    if r.min_count and len(val) < r.min_count:
+                        raise serializers.ValidationError({attr_id: f"حداقل {r.min_count} مقدار لازم است"})
+                    if r.max_count and len(val) > r.max_count:
+                        raise serializers.ValidationError({attr_id: f"حداکثر {r.max_count} مقدار مجاز است"})
+                else:
+                    sval = str(val).strip()
+                    if sval not in allowed:
+                        raise serializers.ValidationError({attr_id: f"مقدار نامعتبر. مجاز: {sorted(allowed)}"})
+            else:  # STR
+                if val is None:
+                    raise serializers.ValidationError({attr_id: "باید مقدار متنی بدهید"})
+
+            # single نباید لیست باشد
+            if not r.is_multi and isinstance(val, (list, tuple)):
+                raise serializers.ValidationError({attr_id: "این خصیصه تک‌مقداری است؛ لیست ندهید"})
+
+        data['_rules'] = rules
+        return data
+
+    @transaction.atomic
+    def create(self, vd):
+        asset: Asset = vd['asset']
+        label = vd.get('label') or None
+        code  = vd.get('code') or None
+        attrs = vd['attributes']
+        rules = vd['_rules']
+
+        # 1) ساخت یک Unit
+        unit = AssetUnit.objects.create(
+            asset=asset, label=label, code=code,
+            is_active=True, is_registered=True
+        )
+
+        # 2) نوشتن EAV برای همین Unit
+        rows = []
+        def add(attr, p, val):
+            row = dict(asset=asset, unit=unit, attribute=attr)
+            if p == Attribute.PropertyType.INT:     row['value_int']   = int(val)
+            elif p == Attribute.PropertyType.FLOAT: row['value_float'] = float(val)
+            elif p == Attribute.PropertyType.BOOL:  row['value_bool']  = to_bool(val)
+            elif p == Attribute.PropertyType.DATE:  row['value_date']  = datetime.strptime(str(val), "%Y-%m-%d").date()
+            elif p == Attribute.PropertyType.CHOICE:row['choice']      = str(val)
+            else:                                   row['value_str']   = str(val)
+            rows.append(AssetAttributeValue(**row))
+
+        for attr_id, val in attrs.items():
+            rule = rules[attr_id]
+            a = rule.attribute
+            if rule.is_multi and a.property_type == Attribute.PropertyType.CHOICE:
+                for v in val: add(a, a.property_type, v)
+            else:
+                add(a, a.property_type, val)
+
+        AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
+        return unit
 
 
 
