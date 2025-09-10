@@ -890,7 +890,10 @@ class AssetUnitCreateSerializer(serializers.Serializer):
             if p == Attribute.PropertyType.INT:     row['value_int']   = int(val)
             elif p == Attribute.PropertyType.FLOAT: row['value_float'] = float(val)
             elif p == Attribute.PropertyType.BOOL:  row['value_bool']  = to_bool(val)
-            elif p == Attribute.PropertyType.DATE:  row['value_date']  = jdatetime.datetime.strptime(str(val), "%Y-%m-%d").date()
+            elif p == Attribute.PropertyType.DATE:
+                jdate = jdatetime.datetime.strptime(str(val), "%Y/%m/%d").date()
+                gdate = jdate.togregorian().date()  # تبدیل به میلادی
+                row['value_date']  = gdate
             elif p == Attribute.PropertyType.CHOICE:row['choice']      = str(val)
             else:                                   row['value_str']   = str(val)
             rows.append(AssetAttributeValue(**row))
