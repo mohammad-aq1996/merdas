@@ -1,4 +1,5 @@
 from django.forms.models import model_to_dict
+from django.db.models import Count
 
 from drf_spectacular.utils import extend_schema
 
@@ -618,6 +619,29 @@ class AssetUnitCreateAPIView(APIView):
         return CustomResponse.success(get_all_data(), data=s.data)
 
 
+class AssetListWithUnitCountAPIView(APIView):
+    queryset = Asset.objects.all()
+    permission_classes = (AllowAny, )
+
+    def get(self, request):
+        qs = (
+            Asset.objects
+            .all()
+            .annotate(unit_count=Count("units", distinct=True))
+            .values("id", "title", "asset_type", "unit_count")
+            .order_by("asset_type", "title")
+        )
+
+        # گروه‌بندی در صورت نیاز
+        grouped = {}
+        for row in qs:
+            grouped.setdefault(row["asset_type"], []).append({
+                "id": row["id"],
+                "title": row["title"],
+                "unit_count": row["unit_count"],
+            })
+
+        return CustomResponse.success(get_all_data(), data=grouped)
 
 
 
