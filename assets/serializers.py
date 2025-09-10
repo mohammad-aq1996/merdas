@@ -33,7 +33,7 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'category',
                   'category_value',
                   'choices')
-        
+
     def validate_choices(self, value):
         cleaned = [v.strip() for v in value if v.strip()]
 
