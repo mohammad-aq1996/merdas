@@ -31,27 +31,12 @@ class Attribute(BaseModel):
     category = models.ForeignKey(AttributeCategory, null=True, blank=True,
                                  on_delete=models.SET_NULL, related_name="attributes")
 
+    choices = models.TextField(blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.title
 
-
-class AttributeChoice(BaseModel):
-    attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name="choices")
-    value = models.CharField(max_length=200)  # مقدار ذخیره‌ای
-    label = models.CharField(max_length=200, null=True, blank=True)
-
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
-
-    class Meta:
-        db_table = "attribute_choice"
-        constraints = [
-            models.UniqueConstraint(fields=['attribute', 'value'], name='uq_attrchoice_attr_value')
-        ]
-
-    def __str__(self):
-        return self.value
 
 # ---------- Assets & Type Rules ----------
 
@@ -108,8 +93,7 @@ class AssetAttributeValue(BaseModel):
     value_str = models.TextField(null=True, blank=True)
     value_bool = models.BooleanField(null=True, blank=True)
     value_date = models.DateField(null=True, blank=True)
-    choice = models.ForeignKey(AttributeChoice, null=True, blank=True,
-                               on_delete=models.RESTRICT, related_name="used_in_values")
+    choice = models.TextField(null=True, blank=True)
 
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.REGISTERED)
 

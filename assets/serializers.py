@@ -26,7 +26,8 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'title_en',
                   'property_type',
                   'category',
-                  'category_value',)
+                  'category_value',
+                  'choices')
 
 
 class AssetTypeAttributeSerializer(serializers.ModelSerializer):
@@ -230,10 +231,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from .models import (
-    Asset, Attribute, AttributeChoice,
-    AssetAttributeValue, AssetRelation, Relation, AssetTypeAttribute
-)
+from .models import Asset, Attribute, AssetAttributeValue, AssetRelation, Relation, AssetTypeAttribute
 
 
 # ---------- Nested: Attribute Value (one-hot by property_type) ----------
@@ -667,24 +665,6 @@ class AssetValuesResponseSerializer(serializers.Serializer):
         if relations_qs is None:
             return []
         return AssetRelationReadSerializer(relations_qs, many=True).data
-
-
-class AttributeChoiceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AttributeChoice
-        fields = ("id", "attribute", "value", "label", "created_at", "updated_at")
-
-    def validate(self, attrs):
-        attribute = attrs.get("attribute") or getattr(self.instance, "attribute", None)
-        value = attrs.get("value") or getattr(self.instance, "value", None)
-
-        if attribute and value:
-            qs = AttributeChoice.objects.filter(attribute=attribute, value__iexact=value)
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError({"value": "این مقدار برای این خصیصه از قبل وجود دارد."})
-        return attrs
 
 
 # --------------- Upload --------------------

@@ -5,8 +5,6 @@ from .views import *
 urlpatterns = [
     path('attribute/category/', AttributeCategoryListCreateView.as_view(), name='attribute_category_list_create'),
     path('attribute/category/<uuid:pk>/', AttributeCategoryDetailView.as_view(), name='attribute_category_detail'),
-    path('attribute/choice/', AttributeChoiceListCreateView.as_view(), name='attribute_choice_list_create'),
-    path('attribute/choice/<uuid:pk>/', AttributeChoiceDetailView.as_view(), name='attribute_choice_detail'),
 
     path('attribute/', AttributeListCreateView.as_view(), name='attribute_list_create'),
     path('attribute/<uuid:pk>/', AttributeDetailView.as_view(), name='attribute_detail'),
