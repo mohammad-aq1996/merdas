@@ -853,22 +853,6 @@ class AssetUnitCreateSerializer(serializers.Serializer):
                 except ValueError:
                     raise serializers.ValidationError({attr_id: "تاریخ باید به فرمت YYYY/MM/DD (شمسی) باشد"})
 
-            elif p == Attribute.PropertyType.CHOICE:
-                allowed = parse_choices(a)
-                if r.is_multi:
-                    if not isinstance(val, (list, tuple)):
-                        raise serializers.ValidationError({attr_id: "این خصیصه چندمقداری است؛ باید لیست بدهید"})
-                    s = set(map(lambda x: str(x).strip(), val))
-                    if not s.issubset(allowed):
-                        raise serializers.ValidationError({attr_id: f"مقدار نامعتبر. مجاز: {sorted(allowed)}"})
-                    if r.min_count and len(val) < r.min_count:
-                        raise serializers.ValidationError({attr_id: f"حداقل {r.min_count} مقدار لازم است"})
-                    if r.max_count and len(val) > r.max_count:
-                        raise serializers.ValidationError({attr_id: f"حداکثر {r.max_count} مقدار مجاز است"})
-                else:
-                    sval = str(val).strip()
-                    if sval not in allowed:
-                        raise serializers.ValidationError({attr_id: f"مقدار نامعتبر. مجاز: {sorted(allowed)}"})
             else:  # STR
                 if val is None:
                     raise serializers.ValidationError({attr_id: "باید مقدار متنی بدهید"})
