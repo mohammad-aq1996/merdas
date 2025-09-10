@@ -817,6 +817,10 @@ class AssetUnitCreateSerializer(serializers.Serializer):
     label      = serializers.CharField(required=False, allow_blank=True)
     code       = serializers.CharField(required=False, allow_blank=True)
     attributes = serializers.DictField(child=serializers.JSONField(), required=True)
+    relations  = serializers.ListField(  # اضافه شد
+        child=serializers.DictField(),   # هر رابطه به صورت dict
+        required=False
+    )
     # مثال attributes: {"12":"HP", "13":35, "16":["duplex","wifi"]}
 
     def validate(self, data):
@@ -883,6 +887,7 @@ class AssetUnitCreateSerializer(serializers.Serializer):
         code  = vd.get('code') or None
         attrs = vd['attributes']
         rules = vd['_rules']
+        rels  = vd.get('relations') or []
 
         # 1) ساخت یک Unit
         unit = AssetUnit.objects.create(
@@ -914,6 +919,17 @@ class AssetUnitCreateSerializer(serializers.Serializer):
                 add(a, a.property_type, val)
 
         AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
+
+        rel_objs = []
+        for r in rels:
+            rel_objs.append(AssetRelation(
+                from_unit=unit,
+                relation_id=r["relation_id"],
+                to_unit_id=r.get("to_unit"),
+                to_asset_id=r.get("to_asset"),
+            ))
+        if rel_objs:
+            AssetRelation.objects.bulk_create(rel_objs, batch_size=200)
         return unit
 
 
