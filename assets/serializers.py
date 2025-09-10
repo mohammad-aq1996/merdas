@@ -924,10 +924,10 @@ class AssetUnitCreateSerializer(serializers.Serializer):
         for r in rels:
             rel_objs.append(AssetRelation(
                 end_date=r.get("end_date"),
-                relation=r.get("relation"),
+                relation_id=r.get("relation"),
                 start_date=r.get("start_date"),
-                target_asset=r.get("target_asset"),
-                source_asset=r.get("source_asset"),
+                target_asset_id=r.get("target_asset"),
+                source_asset=asset,
             ))
         if rel_objs:
             AssetRelation.objects.bulk_create(rel_objs, batch_size=200)
