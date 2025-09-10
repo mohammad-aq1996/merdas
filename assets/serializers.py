@@ -927,7 +927,7 @@ class AssetUnitCreateSerializer(serializers.Serializer):
                 relation_id=r.get("relation"),
                 start_date=r.get("start_date"),
                 target_asset_id=r.get("target_asset"),
-                source_asset=asset,
+                source_asset=unit,
             ))
         if rel_objs:
             AssetRelation.objects.bulk_create(rel_objs, batch_size=200)
