@@ -621,7 +621,6 @@ class AssetUnitCreateAPIView(APIView):
 
 class AssetListWithUnitCountAPIView(APIView):
     queryset = Asset.objects.all()
-    permission_classes = (AllowAny, )
 
     def get(self, request):
         qs = (
