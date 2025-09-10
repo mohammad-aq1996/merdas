@@ -759,6 +759,7 @@ from rest_framework import serializers
 from django.db import transaction
 from datetime import datetime
 import json
+import jdatetime
 
 from .models import Asset, AssetUnit, Attribute, AssetTypeAttribute, AssetAttributeValue
 
@@ -835,14 +836,11 @@ class AssetUnitCreateSerializer(serializers.Serializer):
                 _ = to_bool(val)
             elif p == Attribute.PropertyType.DATE:
                 date_str = str(val)
-                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
-                    try:
-                        datetime.strptime(date_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    raise serializers.ValidationError({attr_id: "تاریخ باید به فرمت YYYY-MM-DD یا YYYY/MM/DD باشد"})
+                try:
+                    jdate = jdatetime.datetime.strptime(date_str, "%Y/%m/%d")  # 1404/06/19
+                    gdate = jdate.togregorian().date()  # تبدیل به میلادی
+                except ValueError:
+                    raise serializers.ValidationError({attr_id: "تاریخ باید به فرمت YYYY/MM/DD (شمسی) باشد"})
 
             elif p == Attribute.PropertyType.CHOICE:
                 allowed = parse_choices(a)
