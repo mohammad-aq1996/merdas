@@ -157,8 +157,8 @@ class Relation(BaseModel):
 
 class AssetRelation(BaseModel):
     relation = models.ForeignKey(Relation, on_delete=models.RESTRICT, related_name="edges")
-    source_asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="out_edges")
-    target_asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="in_edges")
+    source_asset = models.ForeignKey(AssetUnit, on_delete=models.CASCADE, related_name="out_edges")
+    target_asset = models.ForeignKey(AssetUnit, on_delete=models.CASCADE, related_name="in_edges")
 
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
