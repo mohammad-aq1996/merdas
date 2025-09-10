@@ -834,8 +834,16 @@ class AssetUnitCreateSerializer(serializers.Serializer):
             elif p == Attribute.PropertyType.BOOL:
                 _ = to_bool(val)
             elif p == Attribute.PropertyType.DATE:
-                try: datetime.strptime(str(val), "%Y/%m/%d")
-                except: raise serializers.ValidationError({attr_id: "تاریخ باید YYYY/MM/DD باشد"})
+                date_str = str(val)
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
+                    try:
+                        datetime.strptime(date_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise serializers.ValidationError({attr_id: "تاریخ باید به فرمت YYYY-MM-DD یا YYYY/MM/DD باشد"})
+
             elif p == Attribute.PropertyType.CHOICE:
                 allowed = parse_choices(a)
                 if r.is_multi:
