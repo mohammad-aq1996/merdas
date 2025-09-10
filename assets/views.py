@@ -345,8 +345,7 @@ class AttributeChoiceListCreateView(APIView):
             serializer.save(owner=request.user)
             return CustomResponse.success(message=create_data(), data=serializer.data,
                                           status=status.HTTP_201_CREATED)
-        return CustomResponse.error(message="ناموفق", errors=serializer.errors,
-                                    status=status.HTTP_400_BAD_REQUEST)
+        return CustomResponse.error(message="ناموفق", errors=serializer.errors)
 
 
 class AttributeChoiceDetailView(APIView):
