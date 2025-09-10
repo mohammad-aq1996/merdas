@@ -121,8 +121,11 @@ class AssetListCreateView(APIView):
     @extend_schema(responses=AssetReadSerializer)
     def get(self, request):
         asset_type = request.query_params.get("type")
+        title = request.query_params.get("title")
         if asset_type:
             assets = Asset.objects.filter(type=asset_type)
+        elif title:
+            assets = Asset.objects.filter(title=title)
         else:
             assets = Asset.objects.all()
         serializer = AssetReadSerializer(assets, many=True)
