@@ -120,7 +120,11 @@ class AssetListCreateView(APIView):
 
     @extend_schema(responses=AssetReadSerializer)
     def get(self, request):
-        assets = Asset.objects.all()
+        asset_type = request.query_params.get("type")
+        if asset_type:
+            assets = Asset.objects.filter(type=asset_type)
+        else:
+            assets = Asset.objects.all()
         serializer = AssetReadSerializer(assets, many=True)
         return CustomResponse.success(message=get_all_data(), data=serializer.data)
 
