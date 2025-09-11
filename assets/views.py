@@ -615,8 +615,11 @@ class AssetUnitCreateAPIView(APIView):
         data = s.save(owner=request.user)
         return CustomResponse.success(create_data(), data=AssetUnitSerializer(data).data)
 
-    def get(self, request, asset_id):
-        qs = AssetUnit.objects.filter(asset_id=asset_id)
+    def get(self, request, asset_id=None):
+        if asset_id:
+            qs = AssetUnit.objects.filter(asset_id=asset_id)
+        else:
+            qs = AssetUnit.objects.all()
         s = AssetUnitSerializer(qs, many=True)
         return CustomResponse.success(get_all_data(), data=s.data)
 
