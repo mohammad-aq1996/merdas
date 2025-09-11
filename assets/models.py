@@ -123,7 +123,7 @@ class AssetAttributeValue(BaseModel):
     value_float = models.FloatField(null=True, blank=True)
     value_str = models.TextField(null=True, blank=True)
     value_bool = models.BooleanField(null=True, blank=True)
-    value_date = models.DateField(null=True, blank=True)
+    value_date = jmodels.jDateField(null=True, blank=True)
     choice = models.TextField(null=True, blank=True)
 
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.REGISTERED)
