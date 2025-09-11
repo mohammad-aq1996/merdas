@@ -1026,8 +1026,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                 fields = {}
                 if "relation" in r:     fields["relation_id"] = r["relation"]
                 if "target_asset" in r: fields["target_asset_id"] = r["target_asset"]
-                if "start_date" in r:   fields["start_date"] = self._parse_jalali_date(r["start_date"]) if r["start_date"] else None
-                if "end_date" in r:     fields["end_date"]   = self._parse_jalali_date(r["end_date"]) if r["end_date"] else None
+                if "start_date" in r:   fields["start_date"] = r.get("start_date")
+                if "end_date" in r:     fields["end_date"]   = r.get("end_date")
 
                 if rel_id:
                     if fields:
