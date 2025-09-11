@@ -609,6 +609,8 @@ def render_aav_value(aav: AssetAttributeValue):
         return aav.value_bool
     if aav.value_date is not None:
         return aav.value_date.isoformat()
+    if aav.choice is not None:
+        return aav.choice
     return aav.value_str
 
 
