@@ -970,8 +970,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                 source_asset=unit,
                 relation_id=r.get("relation"),
                 target_asset_id=r.get("target_asset"),
-                start_date=self._parse_jalali_date(r["start_date"]) if r.get("start_date") else None,
-                end_date=self._parse_jalali_date(r["end_date"]) if r.get("end_date") else None,
+                start_date=r.get("start_date"),
+                end_date=r.get("end_date")
             ))
         if rel_objs:
             AssetRelation.objects.bulk_create(rel_objs, batch_size=200)
