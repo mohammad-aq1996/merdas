@@ -1,5 +1,7 @@
 from django.forms.models import model_to_dict
-from django.db.models import Count
+from django.db.models import Count, F, Q, Value, JSONField
+from django.db.models.functions import JSONObject, Coalesce
+from django.contrib.postgres.aggregates import JSONBAgg
 
 from drf_spectacular.utils import extend_schema
 
@@ -625,19 +627,28 @@ class AssetListWithUnitCountAPIView(APIView):
     def get(self, request):
         qs = (
             Asset.objects
-            .all()
-            .annotate(unit_count=Count("units", distinct=True))
-            .values("id", "title", "asset_type", "unit_count")
+            .annotate(
+                unit_count=Count("units", distinct=True),
+                unit_items=Coalesce(
+                    JSONBAgg(
+                        JSONObject(id=F('units__id'), label=F('units__label')),
+                        filter=Q(units__isnull=False),
+                        # order_by=('units__label',)  # اگر مرتب‌سازی یونیت‌ها خواستی
+                    ),
+                    Value([], output_field=JSONField())
+                )
+            )
+            .values("id", "title", "asset_type", "unit_count", "unit_items")
             .order_by("asset_type", "title")
         )
 
-        # گروه‌بندی در صورت نیاز
         grouped = {}
         for row in qs:
             grouped.setdefault(row["asset_type"], []).append({
                 "id": row["id"],
                 "title": row["title"],
                 "unit_count": row["unit_count"],
+                "units": row["unit_items"],  # ← اینجا دیگه تداخلی نیست
             })
 
         return CustomResponse.success(get_all_data(), data=grouped)
