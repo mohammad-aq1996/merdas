@@ -25,7 +25,7 @@ urlpatterns = [
     path('csv/edited/', CsvEditsView.as_view(), name='csv_edited'),
     path('csv/commit/', CsvCommitView.as_view(), name='csv_commit'),
 
-
+    path('units/', AssetUnitCreateAPIView.as_view()),  # POST → ساخت یک نمونه + EAV
 
     path('<uuid:asset_id>/units/', AssetUnitCreateAPIView.as_view()),  # POST → ساخت یک نمونه + EAV
 
