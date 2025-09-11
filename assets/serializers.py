@@ -813,7 +813,7 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
         return 'create' if self.instance is None else 'update'
 
     def _parse_jalali_date(self, s):
-        return jdatetime.datetime.strptime(str(s), "%Y/%m/%d")
+        return jdatetime.datetime.strptime(str(s), "%Y/%m/%d").date()
 
     def _to_bool(self, v):
         if isinstance(v, bool): return v
