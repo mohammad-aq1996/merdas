@@ -246,9 +246,9 @@ class AssetAttributeValueView(APIView):
 
         relations_qs = (
             AssetRelation.objects
-            .filter(source_asset=unit.asset)   # همچنان روی Asset
+            .filter(source_asset=unit)
             .select_related("relation", "target_asset")
-            .order_by("relation__key", "target_asset__title")
+            .order_by("relation__key", "target_asset__label")
         )
 
         serializer = AssetUnitDetailSerializer(
