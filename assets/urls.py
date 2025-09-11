@@ -31,4 +31,6 @@ urlpatterns = [
 
     path('list-unit-count/', AssetListWithUnitCountAPIView.as_view()),
 
+    path('unit/<uuid:unit_id>/', AssetUnitUpdateAPIView.as_view()),
+
 ]
