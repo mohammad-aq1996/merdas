@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+import django_jalali.db.models as jmodels
 
 from accounts.models import User
 from core.models import BaseModel
@@ -160,8 +161,8 @@ class AssetRelation(BaseModel):
     source_asset = models.ForeignKey(AssetUnit, on_delete=models.CASCADE, related_name="out_edges")
     target_asset = models.ForeignKey(AssetUnit, on_delete=models.CASCADE, related_name="in_edges")
 
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
+    start_date = jmodels.jDateField(null=True, blank=True)
+    end_date =  jmodels.jDateField(null=True, blank=True)
 
     attribute_value = models.ForeignKey(AssetAttributeValue, on_delete=models.SET_NULL, related_name="edges", null=True)
 
