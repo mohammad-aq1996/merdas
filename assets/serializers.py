@@ -793,146 +793,254 @@ class AssetUnitSerializer(serializers.ModelSerializer):
                   'owner')
 
 
-def parse_choices(attr: Attribute) -> set:
-    if not attr.choices: return set()
-    s = attr.choices.strip()
-    try:
-        data = json.loads(s)
-        if isinstance(data, list):
-            return set(map(lambda x: str(x).strip(), data))
-    except Exception:
-        pass
-    parts = []
-    for line in s.splitlines():
-        parts += line.split(',')
-    return set(p.strip() for p in parts if p.strip())
 
-def to_bool(v):
-    if isinstance(v, bool): return v
-    if isinstance(v, (int, float)): return bool(v)
-    return str(v).strip().lower() in ('1','true','t','yes','y','on','ok','✔','✓')
-
-class AssetUnitCreateSerializer(serializers.Serializer):
-    asset_id   = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all(), source='asset')
+class AssetUnitUpsertSerializer(serializers.Serializer):
+    # روی create لازم، روی update از instance گرفته می‌شود و تغییرش ممنوع است
+    asset_id   = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all(),
+                                                    source='asset', required=False)
     label      = serializers.CharField(required=False, allow_blank=True)
     code       = serializers.CharField(required=False, allow_blank=True)
-    attributes = serializers.DictField(child=serializers.JSONField(), required=True)
-    relations  = serializers.ListField(  # اضافه شد
-        child=serializers.DictField(),   # هر رابطه به صورت dict
-        required=False
-    )
-    # مثال attributes: {"12":"HP", "13":35, "16":["duplex","wifi"]}
 
+    # روی create اجباری؛ روی update اختیاری
+    attributes = serializers.DictField(child=serializers.JSONField(), required=False)
+
+    # CRUD روابط (create/update/delete)، مثل قبل
+    relations  = serializers.ListField(child=serializers.DictField(), required=False)
+    relations_mode = serializers.ChoiceField(choices=['patch', 'replace'], required=False, default='patch')
+
+    # ===== helpers
+    def _mode(self):
+        return 'create' if self.instance is None else 'update'
+
+    def _parse_jalali_date(self, s):
+        jdt = jdatetime.datetime.strptime(str(s), "%Y/%m/%d")
+        return jdt.togregorian().date()
+
+    def _to_bool(self, v):
+        if isinstance(v, bool): return v
+        if isinstance(v, str): return v.strip().lower() in ("true","1","yes","y","on","بله")
+        return bool(v)
+
+    # ===== validate
     def validate(self, data):
-        asset: Asset = data['asset']
-        attrs = data['attributes'] or {}
+        mode = self._mode()
 
-        # قوانین همین Asset (required/is_multi/min/max)
+        # asset را تعیین کن
+        asset = data.get('asset') if mode == 'create' else (data.get('asset') or self.instance.asset)
+        if mode == 'update' and 'asset' in data and data['asset'] != self.instance.asset:
+            raise serializers.ValidationError({"asset_id": "تغییر دارایی برای یک یونیت مجاز نیست."})
+
+        # قوانین
         rules_qs = (AssetTypeAttribute.objects
                     .select_related('attribute')
                     .filter(asset=asset))
         if not rules_qs.exists():
             raise serializers.ValidationError("برای این دارایی هیچ قانون خصیصه‌ای تعریف نشده.")
-
         rules = {str(r.attribute_id): r for r in rules_qs}
         required_ids = {str(r.attribute_id) for r in rules_qs if r.is_required}
 
-        # required → باید در ورودی باشد
-        missing = required_ids - set(attrs.keys())
-        if missing:
-            raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+        attrs = data.get('attributes', None)
 
-        # هیچ خصیصهٔ خارج از rule نباشد
-        invalid = [k for k in attrs.keys() if k not in rules]
-        if invalid:
-            raise serializers.ValidationError({"attributes": f"attribute_id نامعتبر: {invalid}"})
+        # برای update نیاز به current داریم تا required بعد از merge بررسی شود
+        current = {}
+        if mode == 'update':
+            by_attr = {}
+            for row in AssetAttributeValue.objects.filter(unit=self.instance).select_related('attribute'):
+                by_attr.setdefault(str(row.attribute_id), []).append(row)
+            for aid, rows in by_attr.items():
+                a = rows[0].attribute
+                p = a.property_type
+                if len(rows) > 1 and p == Attribute.PropertyType.CHOICE:
+                    current[aid] = [r.choice for r in rows]
+                else:
+                    if p == Attribute.PropertyType.INT:     current[aid] = rows[0].value_int
+                    elif p == Attribute.PropertyType.FLOAT: current[aid] = rows[0].value_float
+                    elif p == Attribute.PropertyType.BOOL:  current[aid] = rows[0].value_bool
+                    elif p == Attribute.PropertyType.DATE:  current[aid] = rows[0].value_date
+                    elif p == Attribute.PropertyType.CHOICE:current[aid] = rows[0].choice
+                    else:                                   current[aid] = rows[0].value_str
 
-        # تایپ/چویس‌ها
-        for attr_id, val in attrs.items():
-            r = rules[attr_id]
-            a = r.attribute
-            p = a.property_type
+        effective = ({**current, **attrs} if attrs is not None else (current if mode=='update' else {}))
 
-            if p == Attribute.PropertyType.INT:
-                try: int(val)
-                except: raise serializers.ValidationError({attr_id: "باید عدد صحیح باشد"})
-            elif p == Attribute.PropertyType.FLOAT:
-                try: float(val)
-                except: raise serializers.ValidationError({attr_id: "باید عدد اعشاری باشد"})
-            elif p == Attribute.PropertyType.BOOL:
-                _ = to_bool(val)
-            elif p == Attribute.PropertyType.DATE:
-                date_str = str(val)
+        # الزامات
+        if mode == 'create':
+            if attrs is None:
+                raise serializers.ValidationError({"attributes": "ارسال attributes در ایجاد الزامی است."})
+            missing = required_ids - set(effective.keys())
+            if missing:
+                raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+        else:
+            if attrs is not None:
+                missing = required_ids - set(effective.keys())
+                if missing:
+                    raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+
+        # اعتبارسنجی فقط روی attrهای ارسال‌شده
+        if attrs is not None:
+            invalid = [k for k in attrs.keys() if k not in rules]
+            if invalid:
+                raise serializers.ValidationError({"attributes": f"attribute_id نامعتبر: {invalid}"})
+
+            for attr_id, val in attrs.items():
+                r = rules[attr_id]
+                a = r.attribute
+                p = a.property_type
+
+                if not r.is_multi and isinstance(val, (list, tuple)):
+                    raise serializers.ValidationError({attr_id: "این خصیصه تک‌مقداری است؛ لیست ندهید"})
+
                 try:
-                    jdate = jdatetime.datetime.strptime(date_str, "%Y/%m/%d")  # 1404/06/19
-                    gdate = jdate.togregorian().date()  # تبدیل به میلادی
-                except ValueError:
-                    raise serializers.ValidationError({attr_id: "تاریخ باید به فرمت YYYY/MM/DD (شمسی) باشد"})
+                    if p == Attribute.PropertyType.INT:
+                        int(val)
+                    elif p == Attribute.PropertyType.FLOAT:
+                        float(val)
+                    elif p == Attribute.PropertyType.BOOL:
+                        self._to_bool(val)
+                    elif p == Attribute.PropertyType.DATE:
+                        self._parse_jalali_date(val)
+                    else:  # STR/CHOICE
+                        if val is None:
+                            raise ValueError()
+                except Exception:
+                    msg = "مقدار نامعتبر"
+                    if p == Attribute.PropertyType.INT:   msg = "باید عدد صحیح باشد"
+                    if p == Attribute.PropertyType.FLOAT: msg = "باید عدد اعشاری باشد"
+                    if p == Attribute.PropertyType.DATE:  msg = "تاریخ باید YYYY/MM/DD (شمسی) باشد"
+                    raise serializers.ValidationError({attr_id: msg})
 
-            else:  # STR
-                if val is None:
-                    raise serializers.ValidationError({attr_id: "باید مقدار متنی بدهید"})
+        # روابط (در صورت ارسال)
+        rels = data.get('relations', None)
+        if rels is not None:
+            for i, r in enumerate(rels, start=1):
+                if r.get("_delete") and not r.get("id"):
+                    continue
+                if r.get("target_asset") and not AssetUnit.objects.filter(pk=r["target_asset"]).exists():
+                    raise serializers.ValidationError({"relations": f"[{i}] target_asset نامعتبر"})
+                if r.get("relation") and not Relation.objects.filter(pk=r["relation"]).exists():
+                    raise serializers.ValidationError({"relations": f"[{i}] relation نامعتبر"})
+                for key in ("start_date", "end_date"):
+                    if r.get(key):
+                        try: self._parse_jalali_date(r[key])
+                        except ValueError:
+                            raise serializers.ValidationError({"relations": f"[{i}] {key} باید YYYY/MM/DD باشد"})
 
-            # single نباید لیست باشد
-            if not r.is_multi and isinstance(val, (list, tuple)):
-                raise serializers.ValidationError({attr_id: "این خصیصه تک‌مقداری است؛ لیست ندهید"})
-
-        data['_rules'] = rules
+        data["_rules"] = rules
+        data["_asset"] = asset
         return data
 
+    # ===== persistence
     @transaction.atomic
     def create(self, vd):
-        asset: Asset = vd['asset']
+        asset = vd["_asset"]
         label = vd.get('label') or None
         code  = vd.get('code') or None
-        attrs = vd['attributes']
-        rules = vd['_rules']
+        attrs = vd.get('attributes') or {}
+        rules = vd["_rules"]
         rels  = vd.get('relations') or []
 
-        # 1) ساخت یک Unit
         unit = AssetUnit.objects.create(
             asset=asset, label=label, code=code,
             is_active=True, is_registered=True
         )
 
-        # 2) نوشتن EAV برای همین Unit
         rows = []
-        def add(attr, p, val):
-            row = dict(asset=asset, unit=unit, attribute=attr)
-            if p == Attribute.PropertyType.INT:     row['value_int']   = int(val)
-            elif p == Attribute.PropertyType.FLOAT: row['value_float'] = float(val)
-            elif p == Attribute.PropertyType.BOOL:  row['value_bool']  = to_bool(val)
-            elif p == Attribute.PropertyType.DATE:
-                jdate = jdatetime.datetime.strptime(str(val), "%Y/%m/%d")
-                gdate = jdate.togregorian().date()  # تبدیل به میلادی
-                row['value_date']  = gdate
-            elif p == Attribute.PropertyType.CHOICE:row['choice']      = str(val)
-            else:                                   row['value_str']   = str(val)
+        def add_row(a, p, v):
+            row = {"asset": asset, "unit": unit, "attribute": a}
+            if p == Attribute.PropertyType.INT:      row["value_int"]   = int(v)
+            elif p == Attribute.PropertyType.FLOAT:  row["value_float"] = float(v)
+            elif p == Attribute.PropertyType.BOOL:   row["value_bool"]  = self._to_bool(v)
+            elif p == Attribute.PropertyType.DATE:   row["value_date"]  = self._parse_jalali_date(v)
+            elif p == Attribute.PropertyType.CHOICE: row["choice"]      = str(v)
+            else:                                    row["value_str"]   = str(v)
             rows.append(AssetAttributeValue(**row))
 
         for attr_id, val in attrs.items():
             rule = rules[attr_id]
-            a = rule.attribute
-            if rule.is_multi and a.property_type == Attribute.PropertyType.CHOICE:
-                for v in val: add(a, a.property_type, v)
+            a, p = rule.attribute, rule.attribute.property_type
+            if rule.is_multi and p == Attribute.PropertyType.CHOICE:
+                for v in (val or []): add_row(a, p, v)
             else:
-                add(a, a.property_type, val)
-
-        AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
+                add_row(a, p, val)
+        if rows:
+            AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
 
         rel_objs = []
-        for r in rels:
+        for r in (rels or []):
             rel_objs.append(AssetRelation(
-                end_date=r.get("end_date"),
-                relation_id=r.get("relation"),
-                start_date=r.get("start_date"),
-                target_asset_id=r.get("target_asset"),
                 source_asset=unit,
+                relation_id=r.get("relation"),
+                target_asset_id=r.get("target_asset"),
+                start_date=self._parse_jalali_date(r["start_date"]) if r.get("start_date") else None,
+                end_date=self._parse_jalali_date(r["end_date"]) if r.get("end_date") else None,
             ))
         if rel_objs:
             AssetRelation.objects.bulk_create(rel_objs, batch_size=200)
+
         return unit
 
+    @transaction.atomic
+    def update(self, unit: AssetUnit, vd):
+        unit = AssetUnit.objects.select_for_update().get(pk=unit.pk)
+
+        if "label" in vd: unit.label = vd.get("label") or None
+        if "code"  in vd: unit.code  = vd.get("code") or None
+        unit.save(update_fields=["label", "code"])
+
+        rules = vd["_rules"]
+
+        # attributes فقط اگر ارسال شده باشند
+        attrs = vd.get("attributes", None)
+        if attrs is not None:
+            for attr_id, val in attrs.items():
+                rule = rules[attr_id]
+                a, p = rule.attribute, rule.attribute.property_type
+                AssetAttributeValue.objects.filter(unit=unit, attribute_id=a.id).delete()
+
+                rows = []
+                def add(v):
+                    row = {"asset": unit.asset, "unit": unit, "attribute": a}
+                    if p == Attribute.PropertyType.INT:      row["value_int"]   = int(v)
+                    elif p == Attribute.PropertyType.FLOAT:  row["value_float"] = float(v)
+                    elif p == Attribute.PropertyType.BOOL:   row["value_bool"]  = self._to_bool(v)
+                    elif p == Attribute.PropertyType.DATE:   row["value_date"]  = self._parse_jalali_date(v)
+                    elif p == Attribute.PropertyType.CHOICE: row["choice"]      = str(v)
+                    else:                                    row["value_str"]   = str(v)
+                    rows.append(AssetAttributeValue(**row))
+
+                if rule.is_multi and p == Attribute.PropertyType.CHOICE:
+                    for v in (val or []): add(v)
+                else:
+                    add(val)
+                if rows:
+                    AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
+
+        # روابط
+        rels = vd.get("relations", None)
+        mode = vd.get("relations_mode", "patch")
+        if rels is not None:
+            if mode == "replace":
+                AssetRelation.objects.filter(source_asset=unit).delete()
+
+            for r in rels:
+                rel_id = r.get("id")
+                if r.get("_delete"):
+                    if rel_id:
+                        AssetRelation.objects.filter(id=rel_id, source_asset=unit).delete()
+                    continue
+
+                fields = {}
+                if "relation" in r:     fields["relation_id"] = r["relation"]
+                if "target_asset" in r: fields["target_asset_id"] = r["target_asset"]
+                if "start_date" in r:   fields["start_date"] = self._parse_jalali_date(r["start_date"]) if r["start_date"] else None
+                if "end_date" in r:     fields["end_date"]   = self._parse_jalali_date(r["end_date"]) if r["end_date"] else None
+
+                if rel_id:
+                    if fields:
+                        AssetRelation.objects.filter(id=rel_id, source_asset=unit).update(**fields)
+                else:
+                    AssetRelation.objects.create(source_asset=unit, **fields)
+
+        return unit
 
 
 

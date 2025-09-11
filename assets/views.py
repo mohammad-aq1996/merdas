@@ -606,14 +606,14 @@ class CsvCommitView(APIView):
 class AssetUnitCreateAPIView(APIView):
     queryset = Asset.objects.all()
 
-    @extend_schema(request=AssetUnitCreateSerializer)
+    @extend_schema(request=AssetUnitUpsertSerializer)
     def post(self, request, asset_id: int):
         payload = dict(request.data)
         payload['asset_id'] = asset_id
-        s = AssetUnitCreateSerializer(data=payload)
+        s = AssetUnitUpsertSerializer(data=payload)
         s.is_valid(raise_exception=True)
-        data = s.save(owner=request.user)
-        return CustomResponse.success(create_data(), data=AssetUnitSerializer(data).data)
+        unit = s.save(owner=request.user)
+        return CustomResponse.success(create_data(), data=AssetUnitSerializer(unit).data)
 
     def get(self, request, asset_id=None):
         if asset_id:
@@ -622,6 +622,33 @@ class AssetUnitCreateAPIView(APIView):
             qs = AssetUnit.objects.all()
         s = AssetUnitSerializer(qs, many=True)
         return CustomResponse.success(get_all_data(), data=s.data)
+
+
+class AssetUnitUpdateAPIView(APIView):
+    queryset = AssetUnit.objects.all()
+
+    @extend_schema(request=AssetUnitUpsertSerializer, responses=AssetUnitSerializer)
+    def patch(self, request, unit_id: str):
+        try:
+            unit = AssetUnit.objects.get(pk=unit_id)
+        except AssetUnit.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+        s = AssetUnitUpsertSerializer(instance=unit, data=request.data, partial=True, context={"request": request})
+        s.is_valid(raise_exception=True)
+        unit = s.save()
+        return CustomResponse.success(update_data(), data=AssetUnitSerializer(unit).data)
+
+    @extend_schema(request=AssetUnitUpsertSerializer, responses=AssetUnitSerializer)
+    def put(self, request, unit_id: str):
+        try:
+            unit = AssetUnit.objects.get(pk=unit_id)
+        except AssetUnit.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+        s = AssetUnitUpsertSerializer(instance=unit, data=request.data, partial=False, context={"request": request})
+        s.is_valid(raise_exception=True)
+        unit = s.save()
+        return CustomResponse.success(update_data(), data=AssetUnitSerializer(unit).data)
+
 
 
 class AssetListWithUnitCountAPIView(APIView):
