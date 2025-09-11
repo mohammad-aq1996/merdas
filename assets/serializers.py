@@ -918,11 +918,7 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                     raise serializers.ValidationError({"relations": f"[{i}] target_asset نامعتبر"})
                 if r.get("relation") and not Relation.objects.filter(pk=r["relation"]).exists():
                     raise serializers.ValidationError({"relations": f"[{i}] relation نامعتبر"})
-                for key in ("start_date", "end_date"):
-                    if r.get(key):
-                        try: self._parse_jalali_date(r[key])
-                        except ValueError:
-                            raise serializers.ValidationError({"relations": f"[{i}] {key} باید YYYY/MM/DD باشد"})
+
 
         data["_rules"] = rules
         data["_asset"] = asset
