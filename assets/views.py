@@ -649,6 +649,16 @@ class AssetUnitUpdateAPIView(APIView):
         unit = s.save()
         return CustomResponse.success(update_data(), data=AssetUnitSerializer(unit).data)
 
+    def delete(self, request, unit_id):
+        try:
+            unit = AssetUnit.objects.get(pk=unit_id)
+        except AssetUnit.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+        aav = AssetAttributeValue.objects.filter(unit=unit)
+        with transaction.atomic():
+            aav.delete()
+            unit.delete()
+        return CustomResponse.success(delete_data(), status=status.HTTP_204_NO_CONTENT)
 
 
 class AssetListWithUnitCountAPIView(APIView):
