@@ -614,7 +614,7 @@ def render_aav_value(aav: AssetAttributeValue):
 
 class AssetRelationReadSerializer(serializers.ModelSerializer):
     relation = serializers.SerializerMethodField()
-    target_asset = serializers.CharField(source="target_asset.title")
+    target_asset = serializers.CharField(source="target_asset.label")
 
     class Meta:
         model = AssetRelation
