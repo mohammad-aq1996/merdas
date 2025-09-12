@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema
 from core.utils import CustomResponse
 
 from assets.models import Attribute, ImportSession
-from .serializers import CsvUploadSerializer, CsvMappingSerializer, CsvCommitSerializer
+from .serializers import CsvUploadSerializer, CsvMappingSerializer, CsvCommitSerializer, CsvEditRowsSerializer
 from .utils import iter_csv_rows
 from .services import CsvImportService
 
