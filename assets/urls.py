@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import *
-
+from assets.csv_import.views import *
 
 urlpatterns = [
     path('attribute/category/', AttributeCategoryListCreateView.as_view(), name='attribute_category_list_create'),

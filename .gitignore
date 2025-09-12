@@ -205,10 +205,10 @@ cython_debug/
 .idea/**/gradle.xml
 .idea/**/libraries
 
-# Gradle and Maven with auto-import
-# When using Gradle or Maven with auto-import, you should exclude module files,
+# Gradle and Maven with auto-csv_import
+# When using Gradle or Maven with auto-csv_import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
-# auto-import.
+# auto-csv_import.
 # .idea/artifacts
 # .idea/compiler.xml
 # .idea/jarRepositories.xml
@@ -302,10 +302,10 @@ fabric.properties
 
 # Gradle
 
-# Gradle and Maven with auto-import
-# When using Gradle or Maven with auto-import, you should exclude module files,
+# Gradle and Maven with auto-csv_import
+# When using Gradle or Maven with auto-csv_import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
-# auto-import.
+# auto-csv_import.
 # .idea/artifacts
 # .idea/compiler.xml
 # .idea/jarRepositories.xml
@@ -360,10 +360,10 @@ fabric.properties
 
 # Gradle
 
-# Gradle and Maven with auto-import
-# When using Gradle or Maven with auto-import, you should exclude module files,
+# Gradle and Maven with auto-csv_import
+# When using Gradle or Maven with auto-csv_import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
-# auto-import.
+# auto-csv_import.
 # .idea/artifacts
 # .idea/compiler.xml
 # .idea/jarRepositories.xml

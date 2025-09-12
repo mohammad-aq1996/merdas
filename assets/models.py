@@ -178,44 +178,59 @@ class AssetRelation(BaseModel):
 
 class ImportSession(BaseModel):
     class State(models.TextChoices):
-        UPLOADED = "uploaded", "Uploaded"
-        MAPPED   = "mapped",   "Mapped"
-        EDITED   = "edited",   "Edited"
-        COMMITTED= "committed","Committed"
+        UPLOADED  = "uploaded",  "Uploaded"
+        MAPPED    = "mapped",    "Mapped"
+        COMMITTED = "committed", "Committed"
 
     file = models.FileField(upload_to="imports/%Y/%m/%d/")
     filename = models.CharField(max_length=255)
     has_header = models.BooleanField(default=True)
-    delimiter = models.CharField(max_length=4, default=",")
+    delimiter = models.CharField(max_length=8, default=",")
     total_rows = models.PositiveIntegerField(default=0)
-    headers = models.JSONField(default=list)        # ["col1","col2",...]
-    preview_rows = models.JSONField(default=list)   # [ {...}, ... ] 10 ردیف اول به شکل dict
 
-    # mapping
-    asset_column = models.CharField(max_length=255, null=True, blank=True)
-    asset_lookup_field = models.CharField(          # "id" | "code" | "title"
-        max_length=20, default="title"
-    )
-    attribute_map = models.JSONField(default=dict)  # {"col_name": "attribute_uuid", ...}
+    headers = models.JSONField(default=list)        # ["col1","col2",...]
+    preview_rows = models.JSONField(default=list)   # حداکثر 10 ردیف اول
+
+    # مپینگ
+    asset_column = models.CharField(max_length=255, null=True, blank=True)       # الزامی در مرحله Mapping
+    unit_label_column = models.CharField(max_length=255, null=True, blank=True)  # الزامی در مرحله Mapping
+    attribute_map = models.JSONField(default=dict)  # {"col_name": "attribute_uuid", ...} (اختیاری)
 
     state = models.CharField(max_length=16, choices=State.choices, default=State.UPLOADED)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["state"]),
+            models.Index(fields=["created_at"]),
+        ]
 
 
 class ImportIssue(BaseModel):
     class Level(models.TextChoices):
         ERROR = "error", "Error"
-        WARN  = "warn", "Warn"
+        WARN  = "warn",  "Warn"
 
-    session = models.ForeignKey(ImportSession, on_delete=models.CASCADE, related_name="issues")
-    row_index = models.PositiveIntegerField()  # 1-based index (بدون هدر)
-    asset_ref = models.CharField(max_length=255, blank=True, null=True)  # مقدار ستون asset در CSV
-    asset = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.SET_NULL)
+    session    = models.ForeignKey(ImportSession, on_delete=models.CASCADE, related_name="issues")
+    row_index  = models.PositiveIntegerField()  # 1-based (بدون هدر)
 
-    attribute = models.ForeignKey(Attribute, null=True, blank=True, on_delete=models.SET_NULL)
-    level = models.CharField(max_length=8, choices=Level.choices, default=Level.ERROR)
-    code = models.CharField(max_length=64)   # e.g., "REQUIRED_MISSING", "TYPE_INVALID", "CHOICE_NOT_FOUND", "MIN_MAX"
-    message = models.TextField()
+    asset_ref  = models.CharField(max_length=255, blank=True, null=True)
+    asset      = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.SET_NULL)
+
+    unit_label = models.CharField(max_length=255, blank=True, null=True)
+    unit       = models.ForeignKey(AssetUnit, null=True, blank=True, on_delete=models.SET_NULL)
+
+    attribute  = models.ForeignKey(Attribute, null=True, blank=True, on_delete=models.SET_NULL)
+    level      = models.CharField(max_length=8, choices=Level.choices, default=Level.ERROR)
+    code       = models.CharField(max_length=64)   # ASSET_NOT_FOUND | UNIT_EXISTS_SKIPPED | TYPE_INVALID | ...
+    message    = models.TextField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["session", "row_index"]),
+            models.Index(fields=["level"]),
+            models.Index(fields=["code"]),
+        ]
 
 
 
