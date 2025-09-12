@@ -129,6 +129,6 @@ class CsvEditsView(APIView):
         # برای سادگی: ویرایش‌ها را روی فایل اصلی اعمال نمی‌کنیم؛
         # یک ساختار edits در DB ذخیره می‌کنیم (ستون→مقدار) برای هر row_index.
         # اینجا برای brevity نگه نمی‌داریم؛ اگر خواستی اضافه می‌کنم: ImportRowEdit مدل.
-        session.state = ImportSession.State.EDITED
-        session.save(update_fields=["state"])
+        # session.state = ImportSession.State.EDITED
+        # session.save(update_fields=["state"])
         return CustomResponse.success(message="ویرایش‌ها ثبت شد (placeholder)", data={"session_id": str(session.id)})
