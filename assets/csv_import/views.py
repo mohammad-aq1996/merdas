@@ -5,8 +5,9 @@ from drf_spectacular.utils import extend_schema
 from core.utils import CustomResponse
 
 from assets.models import Attribute, ImportSession
-from .serializers import CsvUploadSerializer, CsvMappingSerializer, CsvCommitSerializer, CsvEditRowsSerializer
-from .utils import iter_csv_rows
+from .serializers import CsvUploadSerializer, CsvMappingSerializer, CsvCommitSerializer, CsvEditRowsSerializer,\
+                          CsvListRowsQuerySerializer, CsvApplyEditsSerializer
+from .utils import iter_csv_rows, read_csv_all, write_csv_all, overwrite_session_file
 from .services import CsvImportService
 
 
@@ -101,7 +102,7 @@ class CsvCommitView(APIView):
         if not session:
             return CustomResponse.error('داده مورد نظر یافت نشد')
 
-        if session.state != ImportSession.State.MAPPED:
+        if session.state != ImportSession.State.MAPPED or session.state != ImportSession.State.EDITED:
             return CustomResponse.error("ابتدا مپینگ را تکمیل کنید", status=status.HTTP_400_BAD_REQUEST)
 
         stats = CsvImportService(session, request.user).run()
@@ -132,3 +133,127 @@ class CsvEditsView(APIView):
         # session.state = ImportSession.State.EDITED
         # session.save(update_fields=["state"])
         return CustomResponse.success(message="ویرایش‌ها ثبت شد (placeholder)", data={"session_id": str(session.id)})
+
+
+class CsvRowsView(APIView):
+    queryset = ImportSession.objects.all()
+    """
+    نمایش صفحه‌بندی‌شدهٔ سطرهای CSV برای ویرایش (هدر فقط جهت نمایش برمی‌گردد و غیرقابل‌تغییر است).
+    GET params: session_id, page=1, page_size=100
+    """
+    @extend_schema(parameters=[CsvListRowsQuerySerializer], responses=None)
+    def get(self, request):
+        ser = CsvListRowsQuerySerializer(data=request.query_params)
+        if not ser.is_valid():
+            return CustomResponse.error("ناموفق", ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        sid = ser.validated_data["session_id"]
+        page = ser.validated_data["page"]
+        page_size = ser.validated_data["page_size"]
+
+        session = ImportSession.objects.filter(pk=sid).first()
+        if not session:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+
+        headers, rows = read_csv_all(session.file, delimiter=session.delimiter, has_header=session.has_header)
+        total_rows = len(rows)
+        start = (page - 1) * page_size
+        end = min(start + page_size, total_rows)
+
+        page_rows = []
+        # برگرداندن به صورت dict با row_index ۱-بنیاد
+        for i in range(start, end):
+            row_dict = {headers[j]: rows[i][j] for j in range(len(headers))}
+            page_rows.append({"row_index": i + 1, "values": row_dict})
+
+        return CustomResponse.success(
+            message="لیست سطرها",
+            data={
+                "headers": headers,
+                "page": page,
+                "page_size": page_size,
+                "total_rows": total_rows,
+                "items": page_rows,
+                "state": session.state,
+            }
+        )
+
+
+class CsvApplyEditsView(APIView):
+    queryset = ImportSession.objects.all()
+    """
+    اعمال ویرایش‌ها روی خود فایل CSV ذخیره‌شده.
+    ورودی: { session_id, edits: [ {row_index:int>=1, values:{col:value,...}}, ... ] }
+    - هدر قابل‌تغییر نیست؛ keys باید زیرمجموعهٔ headers باشند.
+    - اضافه/حذف سطر فعلاً پشتیبانی نمی‌شود (فقط ویرایش مقادیر).
+    """
+    @extend_schema(request=CsvApplyEditsSerializer, responses=None)
+    def post(self, request):
+        ser = CsvApplyEditsSerializer(data=request.data)
+        if not ser.is_valid():
+            return CustomResponse.error("ناموفق", ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        sid = ser.validated_data["session_id"]
+        edits = ser.validated_data["edits"]
+
+        session = ImportSession.objects.filter(pk=sid).first()
+        if not session:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+
+        headers, rows = read_csv_all(session.file, delimiter=session.delimiter, has_header=session.has_header)
+        if not headers:
+            return CustomResponse.error("فایل CSV فاقد هدر معتبر است.", status=status.HTTP_400_BAD_REQUEST)
+
+        header_set = set(headers)
+        h_index = {h: i for i, h in enumerate(headers)}
+        total_rows = len(rows)
+
+        # اعتبارسنجی اولیهٔ edits
+        for e in edits:
+            ri = e["row_index"]
+            if ri < 1 or ri > total_rows:
+                return CustomResponse.error(f"row_index نامعتبر: {ri}", status=status.HTTP_400_BAD_REQUEST)
+            keys = set(e["values"].keys())
+            unknown = keys - header_set
+            if unknown:
+                return CustomResponse.error(f"ستون‌های نامعتبر در ویرایش: {', '.join(sorted(unknown))}",
+                                            status=status.HTTP_400_BAD_REQUEST)
+
+        # اعمال ویرایش‌ها
+        edited_count = 0
+        for e in edits:
+            ri = e["row_index"] - 1  # به ۰-بنیاد
+            for col, val in e["values"].items():
+                j = h_index[col]
+                rows[ri][j] = "" if val is None else str(val)
+            edited_count += 1
+
+        # بازنویسی فایل
+        content = write_csv_all(headers, rows, delimiter=session.delimiter)
+        overwrite_session_file(session, content)
+
+        # به‌روزرسانی preview_rows (۱۰ ردیف اول)
+        preview = []
+        for idx, row in iter_csv_rows(session.file, delimiter=session.delimiter, has_header=session.has_header):
+            if idx == "__headers__":
+                continue
+            if len(preview) < 10:
+                preview.append(row)
+            else:
+                break
+
+        session.preview_rows = preview
+        session.total_rows = total_rows  # تعداد سطر ثابت مانده
+        session.state = ImportSession.State.EDITED
+        session.save(update_fields=["preview_rows", "total_rows", "state"])
+
+        return CustomResponse.success(
+            "ویرایش‌ها اعمال شد",
+            {
+                "edited_batches": edited_count,
+                "headers": headers,
+                "preview": preview,
+                "total_rows": total_rows,
+                "state": session.state,
+            }
+        )

@@ -33,4 +33,8 @@ urlpatterns = [
 
     path('unit/<uuid:unit_id>/', AssetUnitUpdateAPIView.as_view()),
 
+
+    path('csv/rows/all/', CsvRowsView.as_view()),
+    path('csv/rows/edited/', CsvApplyEditsView.as_view()),
+
 ]

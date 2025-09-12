@@ -96,3 +96,45 @@ def coerce_value_for_attribute(attribute, raw):
             raise serializers.ValidationError("مقدار انتخابی خالی است.")
         return {"choice": parts}
     return {"value_str": s}
+
+
+def read_csv_all(django_file, delimiter=",", has_header=True):
+    """
+    خروجی: (headers: list[str], rows: list[list[str]])
+    rows شامل فقط رکوردهاست (بدون هدر) و طول هر row == len(headers)
+    """
+    with django_file.open("rb") as fh:
+        text = io.TextIOWrapper(fh, encoding="utf-8-sig", newline="")
+        reader = csv.reader(text, delimiter=delimiter)
+        headers = next(reader, [])
+        headers = [str(h).strip() for h in headers] if has_header else [f"col_{i+1}" for i in range(len(headers))]
+        rows = []
+        if not has_header:
+            rows.append(headers.copy())  # first line is actually row1, but we fabricated headers for no-header case
+        for row in reader:
+            row = list(row) + [""] * (len(headers) - len(row))
+            rows.append(row[:len(headers)])
+    # اگر no-header بوده، سطر اول عملاً داده بوده؛ در بالا هندل شد
+    return headers, rows
+
+def write_csv_all(headers, rows, delimiter=",") -> bytes:
+    """CSV را در حافظه می‌سازد و bytes برمی‌گرداند (UTF-8, BOM-safe حذف)."""
+    sio = io.StringIO(newline="")
+    writer = csv.writer(sio, delimiter=delimiter)
+    writer.writerow(headers)
+    for r in rows:
+        writer.writerow([(x if x is not None else "") for x in r])
+    data = sio.getvalue().encode("utf-8")
+    return data
+
+def overwrite_session_file(session, content_bytes: bytes):
+    """
+    فایل session را با محتوای جدید جایگزین می‌کند (همان نام/مسیر).
+    """
+    path = session.file.name
+    # حذف فایل قبلی (اگر روی S3 هست، مشکلی ندارد)
+    try:
+        default_storage.delete(path)
+    except Exception:
+        pass
+    default_storage.save(path, ContentFile(content_bytes))

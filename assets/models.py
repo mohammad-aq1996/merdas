@@ -180,6 +180,7 @@ class ImportSession(BaseModel):
     class State(models.TextChoices):
         UPLOADED  = "uploaded",  "Uploaded"
         MAPPED    = "mapped",    "Mapped"
+        EDITED    = "edited", "Edited"
         COMMITTED = "committed", "Committed"
 
     file = models.FileField(upload_to="imports/%Y/%m/%d/")
