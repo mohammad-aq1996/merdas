@@ -69,7 +69,7 @@ def coerce_value_for_attribute(attribute, raw):
         raise serializers.ValidationError("مقدار خالی است.")
 
     p = attribute.property_type  # با enum مدل خودت هماهنگ است
-    if p == attribute.PropertyType.INTEGER:
+    if p == attribute.PropertyType.INT:
         try:
             return {"value_int": int(s)}
         except Exception:
@@ -79,7 +79,7 @@ def coerce_value_for_attribute(attribute, raw):
             return {"value_float": float(s.replace(",", "."))}
         except Exception:
             raise serializers.ValidationError("عدد اعشاری معتبر نیست.")
-    if p == attribute.PropertyType.BOOLEAN:
+    if p == attribute.PropertyType.BOOL:
         t, f = {"true","1","yes","on","y","t","بلی","بله"}, {"false","0","no","off","n","f","خیر"}
         ls = s.lower()
         if ls in t: return {"value_bool": True}
