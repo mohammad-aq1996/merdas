@@ -112,6 +112,7 @@ class CsvImportService:
 
                         payload = coerce_value_for_attribute(attribute, raw_val)
                         aav = AssetAttributeValue(
+                            asset=asset,
                             unit=unit,
                             attribute=attribute,
                             value_int=payload.get("value_int"),
