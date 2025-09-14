@@ -102,7 +102,7 @@ class CsvCommitView(APIView):
         if not session:
             return CustomResponse.error('داده مورد نظر یافت نشد')
 
-        if session.state != ImportSession.State.MAPPED or session.state != ImportSession.State.EDITED:
+        if session.state not in [ImportSession.State.MAPPED, ImportSession.State.EDITED]:
             return CustomResponse.error("ابتدا مپینگ را تکمیل کنید", status=status.HTTP_400_BAD_REQUEST)
 
         stats = CsvImportService(session, request.user).run()
