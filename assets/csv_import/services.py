@@ -3,23 +3,26 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers
 
-from assets.models import Asset, AssetUnit, Attribute, AssetAttributeValue, ImportSession, ImportIssue
+from assets.models import (
+    Asset, AssetUnit, Attribute, AssetAttributeValue,
+    ImportSession, ImportIssue
+)
 from .utils import iter_csv_rows, normalize_str, coerce_value_for_attribute
 
 
 class CsvImportService:
     """
-    Create-only:
+    Create-only Import Service:
       - اگر Asset با title پیدا نشود → ERROR و سطر رد می‌شود.
       - اگر Unit (asset, label) از قبل باشد → WARN و سطر نادیده گرفته می‌شود.
-      - فقط ستون‌های غیرالزامی (غیر از asset/unit) به‌عنوان خصیصه ذخیره می‌شوند.
+      - اگر خصیصه اجباری مقدار نداشته باشد → is_registered=False می‌ماند.
+      - مقادیر موجود ذخیره می‌شوند تا بعداً کاربر بتواند ویرایش کند.
     """
 
     def __init__(self, session: ImportSession, user):
         self.session = session
         self.user = user
         self.attr_cache: Dict[str, Attribute] = {}
-        # اگر mapping صریح دارد، cache اولیه را بسازیم
         if self.session.attribute_map:
             qs = Attribute.objects.filter(id__in=self.session.attribute_map.values())
             self.attr_cache.update({str(a.id): a for a in qs})
@@ -29,7 +32,7 @@ class CsvImportService:
         s.issues.all().delete()
 
         stats = dict(units_created=0, rows_skipped=0, values_created=0, errors=0, warnings=0)
-        seen: Set[tuple] = set()  # جلوگیری از دوباره‌کاری داخل همین فایل
+        seen: Set[tuple] = set()
 
         for idx, row in iter_csv_rows(s.file, delimiter=s.delimiter, has_header=s.has_header):
             if idx == "__headers__":
@@ -47,7 +50,6 @@ class CsvImportService:
                 stats["errors"] += 1
                 continue
 
-            # 1) Asset با title
             try:
                 asset = Asset.objects.get(title=asset_ref)
             except Asset.DoesNotExist:
@@ -65,7 +67,6 @@ class CsvImportService:
                 stats["warnings"] += 1
                 continue
 
-            # 2) اگر Unit موجود است → skip
             if AssetUnit.objects.filter(asset=asset, label=unit_label).only("id").exists():
                 self._issue(idx, asset_ref, unit_label, asset=asset, level=ImportIssue.Level.WARN,
                             code="UNIT_ALREADY_EXISTS_SKIPPED",
@@ -76,23 +77,26 @@ class CsvImportService:
                 continue
 
             with transaction.atomic():
-                # 3) ساخت Unit
-                unit = AssetUnit.objects.create(asset=asset, label=unit_label)
+                # ساخت Unit: پیش‌فرض ثبت‌نشده
+                unit = AssetUnit.objects.create(asset=asset, label=unit_label, is_registered=False)
                 stats["units_created"] += 1
                 seen.add(key)
 
-                # 4) نگاشت خصیصه‌ها
+                # پیدا کردن خصیصه‌های الزامی
+                required_attrs = Attribute.objects.filter(
+                    assettypeattribute__asset_type=asset.asset_type,
+                    assettypeattribute__is_required=True
+                ).distinct()
+
+                # نگاشت خصیصه‌ها
                 effective_map = dict(s.attribute_map) if s.attribute_map else {}
                 if not effective_map:
-                    # Auto-resolve:‌ ستون‌های غیر از asset/unit را به attribute با همان نام نگاشت کن
                     for col_name, raw_val in row.items():
                         if col_name in (s.asset_column, s.unit_label_column):
                             continue
                         if raw_val is None or str(raw_val).strip() == "":
                             continue
-                        attr = Attribute.objects.filter(
-                            Q(title=col_name) | Q(title_en=col_name)
-                        ).first()
+                        attr = Attribute.objects.filter(Q(title=col_name) | Q(title_en=col_name)).first()
                         if attr:
                             effective_map[col_name] = str(attr.id)
                         else:
@@ -101,7 +105,29 @@ class CsvImportService:
                                         msg=f"ستون '{col_name}' به خصیصه‌ای نگاشت نشد؛ نادیده گرفته شد.")
                             stats["warnings"] += 1
 
-                # 5) ساخت AAVها
+                # بررسی الزامی‌ها
+                missing_required = []
+                for ra in required_attrs:
+                    raw_val = None
+                    for col, attr_id in effective_map.items():
+                        if attr_id == str(ra.id):
+                            raw_val = row.get(col)
+                            break
+                    if raw_val is None or str(raw_val).strip() == "":
+                        missing_required.append(ra.title)
+
+                if missing_required:
+                    self._issue(idx, asset_ref, unit_label, asset=asset, unit=unit,
+                                code="REQUIRED_ATTR_MISSING",
+                                msg=f"خصیصه‌های الزامی بدون مقدار: {', '.join(missing_required)}")
+                    stats["errors"] += 1
+                    unit.is_registered=False
+                else:
+                    # اگر همه پر هستند → ثبت شده
+                    unit.is_registered = True
+                    unit.save(update_fields=["is_registered"])
+
+                # ساخت AAVها حتی در حالت ناقص
                 for col, attr_id in effective_map.items():
                     raw_val = row.get(col, None)
                     if raw_val is None or str(raw_val).strip() == "":
@@ -122,9 +148,6 @@ class CsvImportService:
                             value_date=payload.get("value_date"),
                             choice=payload.get("choice"),
                         )
-                        # فیلدهای اختیاری پروژه (اگر دارید)
-                        if hasattr(AssetAttributeValue, "Status"):
-                            aav.status = AssetAttributeValue.Status.REGISTERED
                         if hasattr(aav, "owner"):
                             aav.owner = self.user
                         aav.save()
