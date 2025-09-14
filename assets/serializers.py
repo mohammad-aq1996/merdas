@@ -981,7 +981,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
 
         if "label" in vd: unit.label = vd.get("label") or None
         if "code"  in vd: unit.code  = vd.get("code") or None
-        unit.save(update_fields=["label", "code"])
+        unit.is_registered = True
+        unit.save(update_fields=["label", "code", "is_registered"])
 
         rules = vd["_rules"]
 
