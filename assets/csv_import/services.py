@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from assets.models import (
     Asset, AssetUnit, Attribute, AssetAttributeValue,
-    ImportSession, ImportIssue
+    ImportSession, ImportIssue, AssetTypeAttribute
 )
 from .utils import iter_csv_rows, normalize_str, coerce_value_for_attribute
 
@@ -15,7 +15,7 @@ class CsvImportService:
     Create-only Import Service:
       - اگر Asset با title پیدا نشود → ERROR و سطر رد می‌شود.
       - اگر Unit (asset, label) از قبل باشد → WARN و سطر نادیده گرفته می‌شود.
-      - اگر خصیصه اجباری مقدار نداشته باشد → is_registered=False می‌ماند.
+      - اگر خصیصه‌های الزامی مقدار نداشته باشند → is_registered=False می‌ماند.
       - مقادیر موجود ذخیره می‌شوند تا بعداً کاربر بتواند ویرایش کند.
     """
 
@@ -77,18 +77,20 @@ class CsvImportService:
                 continue
 
             with transaction.atomic():
-                # ساخت Unit: پیش‌فرض ثبت‌نشده
+                # ✅ ساخت Unit با is_registered=False به‌صورت پیش‌فرض
                 unit = AssetUnit.objects.create(asset=asset, label=unit_label, is_registered=False)
                 stats["units_created"] += 1
                 seen.add(key)
 
-                # پیدا کردن خصیصه‌های الزامی
+                # ✅ پیدا کردن خصیصه‌های الزامی
                 required_attrs = Attribute.objects.filter(
-                    assettypeattribute__asset_type=asset.asset_type,
-                    assettypeattribute__is_required=True
-                ).distinct()
+                    id__in=AssetTypeAttribute.objects.filter(
+                        asset_type=asset.asset_type,
+                        is_required=True
+                    ).values_list("attribute_id", flat=True)
+                )
 
-                # نگاشت خصیصه‌ها
+                # ✅ نگاشت خصیصه‌ها
                 effective_map = dict(s.attribute_map) if s.attribute_map else {}
                 if not effective_map:
                     for col_name, raw_val in row.items():
@@ -105,7 +107,7 @@ class CsvImportService:
                                         msg=f"ستون '{col_name}' به خصیصه‌ای نگاشت نشد؛ نادیده گرفته شد.")
                             stats["warnings"] += 1
 
-                # بررسی الزامی‌ها
+                # ✅ بررسی مقادیر الزامی
                 missing_required = []
                 for ra in required_attrs:
                     raw_val = None
@@ -123,11 +125,10 @@ class CsvImportService:
                     stats["errors"] += 1
                     unit.is_registered=False
                 else:
-                    # اگر همه پر هستند → ثبت شده
                     unit.is_registered = True
                     unit.save(update_fields=["is_registered"])
 
-                # ساخت AAVها حتی در حالت ناقص
+                # ✅ ساخت AAVها حتی اگر ناقص باشد
                 for col, attr_id in effective_map.items():
                     raw_val = row.get(col, None)
                     if raw_val is None or str(raw_val).strip() == "":
