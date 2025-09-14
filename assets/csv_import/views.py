@@ -115,26 +115,6 @@ class CsvCommitView(APIView):
         return CustomResponse.success("پردازش CSV (Create-only) انجام شد", data)
 
 
-class CsvEditsView(APIView):
-    @extend_schema(request=CsvEditRowsSerializer, responses=None)
-    def post(self, request):
-        ser = CsvEditRowsSerializer(data=request.data)
-        if not ser.is_valid():
-            return CustomResponse.error("ناموفق", ser.errors, status=status.HTTP_400_BAD_REQUEST)
-        sid = ser.validated_data["session_id"]
-        try:
-            session = ImportSession.objects.get(pk=sid)
-        except ImportSession.DoesNotExist:
-            return CustomResponse.error('داده مورد نظر یافت نشد')
-
-        # برای سادگی: ویرایش‌ها را روی فایل اصلی اعمال نمی‌کنیم؛
-        # یک ساختار edits در DB ذخیره می‌کنیم (ستون→مقدار) برای هر row_index.
-        # اینجا برای brevity نگه نمی‌داریم؛ اگر خواستی اضافه می‌کنم: ImportRowEdit مدل.
-        # session.state = ImportSession.State.EDITED
-        # session.save(update_fields=["state"])
-        return CustomResponse.success(message="ویرایش‌ها ثبت شد (placeholder)", data={"session_id": str(session.id)})
-
-
 class CsvRowsView(APIView):
     queryset = ImportSession.objects.all()
     """

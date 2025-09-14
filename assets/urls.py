@@ -12,18 +12,12 @@ urlpatterns = [
     path('', AssetListCreateView.as_view(), name='asset_list_create'),
     path('<uuid:pk>/', AssetDetailView.as_view(), name='asset_detail'),
 
-    path('attribute/list/', AssetAttributesView.as_view(), name='asset_attribute_list_create'),
+    path('attribute/list/', AssetAttributesListView.as_view(), name='asset_attribute_list_create'),
 
     path('relation/', RelationListCreateView.as_view(), name='relation_list_create'),
     path('relation/<uuid:pk>/', RelationDetailView.as_view(), name='relation_detail'),
 
-    path('attribute/value/', AssetAttributeValueView.as_view(), name='asset_attribute_value_list_create'),
     path('attribute/value/<uuid:unit_id>/', AssetAttributeValueView.as_view(), name='asset_attribute_value_list_create'),
-
-    path('csv/upload/preview/', CsvUploadView.as_view(), name='csv_upload'),
-    path('csv/mapping/', CsvMappingView.as_view(), name='csv_mapping'),
-    path('csv/edited/', CsvEditsView.as_view(), name='csv_edited'),
-    path('csv/commit/', CsvCommitView.as_view(), name='csv_commit'),
 
     path('units/', AssetUnitCreateAPIView.as_view()),  # POST → ساخت یک نمونه + EAV
 
@@ -36,5 +30,7 @@ urlpatterns = [
 
     path('csv/rows/all/', CsvRowsView.as_view()),
     path('csv/rows/edited/', CsvApplyEditsView.as_view()),
-
+    path('csv/upload/preview/', CsvUploadView.as_view(), name='csv_upload'),
+    path('csv/mapping/', CsvMappingView.as_view(), name='csv_mapping'),
+    path('csv/commit/', CsvCommitView.as_view(), name='csv_commit'),
 ]

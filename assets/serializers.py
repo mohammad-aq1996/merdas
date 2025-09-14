@@ -1,7 +1,13 @@
-from rest_framework import serializers
-from assets.models import *
-from django.db import transaction
 from datetime import datetime, date
+from collections import defaultdict
+import jdatetime
+
+from rest_framework import serializers
+
+from django.db.models import Count, Q
+from django.db import transaction
+
+from assets.models import *
 
 
 class AttributeCategorySerializer(serializers.ModelSerializer):
@@ -61,29 +67,7 @@ class AssetTypeAttributeWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssetTypeAttribute
-        fields = ("attribute", "is_required", "is_multi", "min_count", "max_count")
-
-    def validate(self, attrs):
-        is_multi = attrs.get("is_multi", False)
-        min_count = attrs.get("min_count", 0) or 0
-        max_count = attrs.get("max_count", None)
-
-        # min/max منطقی
-        if min_count < 0:
-            raise serializers.ValidationError({"min_count": "نمی‌تواند منفی باشد."})
-        if max_count is not None and max_count < 1:
-            raise serializers.ValidationError({"max_count": "اگر تعیین شود باید ≥ 1 باشد."})
-        if max_count is not None and min_count > max_count:
-            raise serializers.ValidationError({"max_count": "باید ≥ min_count باشد."})
-
-        # اگر تک‌مقداری، min/max را محدود کن
-        if not is_multi:
-            if min_count > 1:
-                raise serializers.ValidationError({"min_count": "برای فیلد تک‌مقداری باید ≤ 1 باشد."})
-            if max_count is not None and max_count > 1:
-                raise serializers.ValidationError({"max_count": "برای فیلد تک‌مقداری باید ≤ 1 باشد."})
-
-        return attrs
+        fields = ("attribute", "is_required", "is_multi")
 
 
 class AssetCreateUpdateSerializer(serializers.ModelSerializer):
@@ -177,31 +161,6 @@ class AssetAttributeSerializer(serializers.Serializer):
     asset_id = serializers.CharField(write_only=True)
 
 
-class AttributeValuesSerializer(serializers.Serializer):
-    attribute_id = serializers.CharField(write_only=True)
-    value = serializers.CharField(write_only=True)
-
-    def validate(self, attr):
-        attribute_id = attr.get('attribute_id')
-        value = attr.get('value')
-
-        attribute = Attribute.objects.filter(pk=attribute_id).first()
-        if not attribute:
-            raise serializers.ValidationError('Attribute not found')
-
-        property_type = attribute.property_type
-
-        if property_type == 'int':
-            attr['value_int'] = int(value)
-        elif property_type == 'str':
-            attr['value_str'] = str(value)
-        attr.pop('value')
-        # if not isinstance(value, property_type):
-        #     raise serializers.ValidationError('Value is not a property type')
-
-        return attr
-
-
 class RelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Relation
@@ -217,33 +176,6 @@ class AssetRelationSerializer(serializers.ModelSerializer):
                   'start_date',
                   'end_date',)
 
-
-# class AssetAttributeValueSerializer(serializers.Serializer):
-#     attribute_values = AttributeValuesSerializer(many=True)
-#     relations = AssetRelationSerializer(many=True)
-#     asset_id = serializers.CharField(write_only=True)
-#
-#     @transaction.atomic
-#     def create(self, validated_data):
-#         attribute_values = validated_data.pop('attribute_values')
-#         relations = validated_data.pop('relations')
-#         asset_id = validated_data.pop('asset_id')
-#
-#         asset = Asset.objects.get(id=asset_id)
-#         for attribute_value in attribute_values:
-#             obj = AssetAttributeValue.objects.create(asset=asset, **attribute_value)
-#
-#         for relation in relations:
-#             AssetRelation.objects.create(source_asset=asset, **relation)
-#
-#         return obj
-
-from collections import defaultdict
-from django.db import transaction
-from django.db.models import Count, Q
-from rest_framework import serializers
-
-from .models import Asset, Attribute, AssetAttributeValue, AssetRelation, Relation, AssetTypeAttribute
 
 
 # ---------- Nested: Attribute Value (one-hot by property_type) ----------
@@ -427,174 +359,6 @@ class AssetRelationWriteSerializer(serializers.ModelSerializer):
 
 # ---------- Wrapper: POST (append) / PUT (replace-all) ----------
 
-class AssetAttributeValueUpsertSerializer(serializers.Serializer):
-    asset = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.all(), write_only=True)
-    attribute_values = AttributeValueInSerializer(many=True, required=False)
-    relations = AssetRelationWriteSerializer(many=True, required=False)
-
-    # --- ابزار ولیدیشن قوانین type_rules ---
-    def _validate_rules_and_counts(self, *, asset: Asset, incoming: list, replace_all: bool):
-        """
-        - asset.type_rules تعیین‌کننده‌ی مجاز بودن attribute و قوانین min/max/required/is_multi است.
-        - در POST: final_count = existing + incoming
-        - در PUT (replace_all): final_count = incoming (چون قبلش حذف می‌کنیم)
-        """
-        rules = {r.attribute_id: r for r in asset.type_rules.select_related("attribute")}
-        # گروه‌بندی ورودی‌ها بر اساس attribute
-        incoming_by_attr = defaultdict(list)
-        for item in incoming:
-            incoming_by_attr[item["attribute"].id].append(item)
-
-        # برای هر خصیصه‌ای که داده آمده:
-        for attr_id, items in incoming_by_attr.items():
-            rule = rules.get(attr_id)
-            if not rule:
-                raise serializers.ValidationError({"attribute_values": f"خصیصه‌ی {attr_id} برای این دارایی مجاز نیست."})
-
-            incoming_count = len(items)
-            if replace_all:
-                final_count = incoming_count
-            else:
-                existing_count = AssetAttributeValue.objects.filter(asset=asset, attribute_id=attr_id).count()
-                final_count = existing_count + incoming_count
-
-            # is_multi
-            if not rule.is_multi and final_count > 1:
-                raise serializers.ValidationError({
-                    "attribute_values": f"خصیصه‌ی {rule.attribute.title} تک‌مقداری است (final_count={final_count})."
-                })
-
-            # min/max و required
-            min_needed = max(1, rule.min_count) if rule.is_required else (rule.min_count or 0)
-            if final_count < min_needed:
-                raise serializers.ValidationError({
-                    "attribute_values": f"برای {rule.attribute.title} حداقل {min_needed} مقدار لازم است (final={final_count})."
-                })
-            if rule.max_count is not None and final_count > rule.max_count:
-                raise serializers.ValidationError({
-                    "attribute_values": f"برای {rule.attribute.title} حداکثر {rule.max_count} مقدار مجاز است (final={final_count})."
-                })
-
-        # همچنین می‌تونیم اطمینان بدهیم برای requiredهایی که اصلاً در ورودی نیامده‌اند،
-        # در POST جمع موجود+جدید حداقل یکی باشد. برای replace_all (PUT) باید صفر نشود.
-        required_rules = [r for r in rules.values() if r.is_required]
-        if replace_all:
-            # همه‌چیز را جایگزین می‌کنیم؛ پس برای requiredهایی که اصلاً در ورودی نیستند، خطا بده
-            for r in required_rules:
-                if r.attribute_id not in incoming_by_attr and (r.min_count or 1) > 0:
-                    raise serializers.ValidationError({
-                        "attribute_values": f"خصیصه‌ی اجباری {r.attribute.title} ارسال نشده است."
-                    })
-        else:
-            # در POST: اگر required است و موجودی صفر و در ورودی هم نیامده، خطا
-            for r in required_rules:
-                if r.attribute_id not in incoming_by_attr:
-                    existing_count = AssetAttributeValue.objects.filter(
-                        asset=asset, attribute_id=r.attribute_id
-                    ).count()
-                    if existing_count < max(1, r.min_count or 0):
-                        raise serializers.ValidationError({
-                            "attribute_values": f"برای {r.attribute.title} حداقل یک مقدار لازم است."
-                        })
-
-    # --- CREATE (POST: append) ---
-    @transaction.atomic
-    def create(self, validated_data):
-        asset: Asset = validated_data["asset"]
-        owner = self.context.get("owner")
-        av_items = validated_data.get("attribute_values") or []
-        rel_items = validated_data.get("relations") or []
-
-        # قوانین را بر اساس append چک کن
-        self._validate_rules_and_counts(asset=asset, incoming=av_items, replace_all=False)
-
-        # ساخت مقادیر
-        values_to_create = []
-        for item in av_items:
-            values_to_create.append(AssetAttributeValue(
-                asset=asset,
-                attribute=item["attribute"],
-                value_int=item.get("value_int"),
-                value_float=item.get("value_float"),
-                value_str=item.get("value_str"),
-                value_bool=item.get("value_bool"),
-                value_date=item.get("value_date"),
-                choice=item.get("choice"),
-                status=item.get("status", AssetAttributeValue.Status.REGISTERED),
-                owner=owner,
-            ))
-        if values_to_create:
-            AssetAttributeValue.objects.bulk_create(values_to_create)
-
-        # ساخت روابط
-        rel_to_create = []
-        for r in rel_items:
-            rel_to_create.append(AssetRelation(
-                relation=r["relation"],
-                source_asset=asset,
-                target_asset=r["target_asset"],
-                start_date=r.get("start_date"),
-                end_date=r.get("end_date"),
-                note=r.get("note"),
-                owner=owner,
-            ))
-        if rel_to_create:
-            AssetRelation.objects.bulk_create(rel_to_create)
-
-        return {
-            "created_values": len(values_to_create),
-            "created_relations": len(rel_to_create),
-        }
-
-    # --- UPDATE (PUT: replace-all) ---
-    @transaction.atomic
-    def update(self, asset: Asset, validated_data):
-        owner = self.context.get("owner")
-        av_items = validated_data.get("attribute_values") or []
-        rel_items = validated_data.get("relations") or []
-
-        # قوانین را بر اساس replace-all چک کن
-        self._validate_rules_and_counts(asset=asset, incoming=av_items, replace_all=True)
-
-        # جایگزینی کامل AAVها
-        AssetAttributeValue.objects.filter(asset=asset).delete()
-        values_to_create = []
-        for item in av_items:
-            values_to_create.append(AssetAttributeValue(
-                asset=asset,
-                attribute=item["attribute"],
-                value_int=item.get("value_int"),
-                value_float=item.get("value_float"),
-                value_str=item.get("value_str"),
-                value_bool=item.get("value_bool"),
-                value_date=item.get("value_date"),
-                choice=item.get("choice"),
-                status=item.get("status", AssetAttributeValue.Status.REGISTERED),
-                owner=owner,
-            ))
-        if values_to_create:
-            AssetAttributeValue.objects.bulk_create(values_to_create)
-
-        # جایگزینی کامل روابط (از این دارایی به دیگران)
-        AssetRelation.objects.filter(source_asset=asset).delete()
-        rel_to_create = []
-        for r in rel_items:
-            rel_to_create.append(AssetRelation(
-                relation=r["relation"],
-                source_asset=asset,
-                target_asset=r["target_asset"],
-                start_date=r.get("start_date"),
-                end_date=r.get("end_date"),
-                note=r.get("note"),
-                owner=owner,
-            ))
-        if rel_to_create:
-            AssetRelation.objects.bulk_create(rel_to_create)
-
-        return {
-            "replaced_values": len(values_to_create),
-            "replaced_relations": len(rel_to_create),
-        }
 
 
 
@@ -728,56 +492,6 @@ class AssetUnitDetailSerializer(serializers.Serializer):
         return AssetRelationReadSerializer(relations_qs, many=True).data
 
 
-# --------------- Upload --------------------
-
-
-class CsvUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
-    has_header = serializers.BooleanField(required=False, default=True)
-    delimiter = serializers.CharField(required=False, default=",", max_length=4)
-
-    def validate(self, attrs):
-        f = attrs["file"]
-        if not f.name.lower().endswith((".csv", ".txt")):
-            raise serializers.ValidationError({"file": "فقط فایل CSV/TXT مجاز است."})
-        return attrs
-
-
-class CsvMappingSerializer(serializers.Serializer):
-    session_id = serializers.UUIDField()
-    asset_column = serializers.CharField()
-    asset_lookup_field = serializers.ChoiceField(choices=[("id","id"),("code","code"),("title","title")], default="id")
-    attribute_map = serializers.DictField(
-        child=serializers.UUIDField(), allow_empty=False
-    )
-
-
-class CsvEditRowsSerializer(serializers.Serializer):
-    session_id = serializers.UUIDField()
-    # rows: [{"row_index": 12, "values": {"colA":"...", "colB":"..."}}]
-    rows = serializers.ListField(
-        child=serializers.DictField(), allow_empty=False
-    )
-
-
-class CsvCommitSerializer(serializers.Serializer):
-    session_id = serializers.UUIDField()
-    mode = serializers.ChoiceField(choices=[("append","append"),("replace","replace")], default="append")
-
-
-# ***********************************************************************************************************************
-
-
-# serializers.py
-from rest_framework import serializers
-from django.db import transaction
-from datetime import datetime
-import json
-import jdatetime
-
-from .models import Asset, AssetUnit, Attribute, AssetTypeAttribute, AssetAttributeValue
-
-
 class AssetUnitSerializer(serializers.ModelSerializer):
     asset = serializers.CharField(source="asset.title", read_only=True)
     owner = serializers.CharField(source="owner.username", read_only=True)
@@ -793,7 +507,6 @@ class AssetUnitSerializer(serializers.ModelSerializer):
                   'is_active',
                   'is_registered',
                   'owner')
-
 
 
 class AssetUnitUpsertSerializer(serializers.Serializer):
