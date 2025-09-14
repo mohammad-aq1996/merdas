@@ -83,16 +83,12 @@ class CsvImportService:
                 seen.add(key)
 
                 # ✅ پیدا کردن خصیصه‌های الزامی
-                # required_attrs = Attribute.objects.filter(
-                #     id__in=AssetTypeAttribute.objects.filter(
-                #         asset_type=asset.asset_type,
-                #         is_required=True
-                #     ).values_list("attribute_id", flat=True)
-                # )
-                required_attrs = AssetTypeAttribute.objects.filter(
+                required_attrs = Attribute.objects.filter(
+                    id__in=AssetTypeAttribute.objects.filter(
                         asset=asset,
                         is_required=True
-                    ).values_list("attribute", flat=True)
+                    ).values_list("attribute_id", flat=True)
+                )
                 # ✅ نگاشت خصیصه‌ها
                 effective_map = dict(s.attribute_map) if s.attribute_map else {}
                 if not effective_map:
