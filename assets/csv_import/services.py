@@ -90,7 +90,7 @@ class CsvImportService:
                 #     ).values_list("attribute_id", flat=True)
                 # )
                 required_attrs = AssetTypeAttribute.objects.filter(
-                        type_rules=asset,
+                        asset=asset,
                         is_required=True
                     ).values_list("attribute_id", flat=True)
                 # ✅ نگاشت خصیصه‌ها
