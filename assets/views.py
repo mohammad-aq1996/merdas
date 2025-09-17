@@ -412,9 +412,16 @@ class AssetListWithUnitCountAPIView(APIView):
         return CustomResponse.success(get_all_data(), data=grouped)
 
 
+class CsvImportIssuesAPIView(APIView):
+    queryset = ImportIssue.objects.all()
 
-
-
+    def get(self, request, pk):
+        try:
+            issue = ImportIssue.objects.get(pk=pk)
+        except ImportIssue.DoesNotExist:
+            return CustomResponse.error('داده مورد نظر یافت نشد')
+        serializer = CsvIssueSerializer(issue)
+        return CustomResponse.success(get_single_data(), data=serializer.data)
 
 
 

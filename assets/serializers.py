@@ -754,7 +754,9 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
         return unit
 
 
-
-
+class CsvIssueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportIssue
+        fields = "__all__"
 
 
