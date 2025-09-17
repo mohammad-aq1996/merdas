@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Iterator, Tuple, Dict, Any
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+import calendar
 
 
 PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
@@ -47,44 +48,61 @@ def iter_csv_rows(django_file, delimiter=",", has_header=True) -> Iterator[Tuple
                 yield (idx, {headers[i]: row[i] for i in range(len(headers))})
 
 
+
+_JALALI_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
+
 def parse_date_flex(raw: str):
     """
     تاریخ ورودی رو به jdatetime.date برمی‌گردونه (شمسی).
-    - ورودی می‌تونه با / یا - باشه
-    - می‌تونه جلالی یا میلادی باشه
-    - فرمت‌های مجاز:
-        1404/05/30 - 1404-5-30
-        2025/09/17 - 17/09/2025
+    - ورودی می‌تواند جلالی یا میلادی باشد.
+    - فرمت‌های YYYY-MM-DD ، MM-DD-YYYY ، DD-MM-YYYY پشتیبانی می‌شود.
+    - اگر روز نامعتبر باشد به آخرین روز همان ماه اصلاح می‌شود.
     """
     s = normalize_str(raw)
     if not s:
         return None
 
-    # تبدیل همه جداکننده‌ها به "-"
     s = re.sub(r"[\/]", "-", s)
-
-    # تشخیص الگو
-    m = re.match(r"^(\d{2,4})-(\d{1,2})-(\d{1,2})$", s)
-    if not m:
+    parts = s.split("-")
+    if len(parts) != 3:
         raise ValueError("فرمت تاریخ معتبر نیست.")
 
-    y, mth, d = map(int, m.groups())
+    nums = [int(x) for x in parts]
 
-    # جلالی یا میلادی؟
-    if y >= 1300 and y <= 1500:
-        # جلالی
-        try:
-            return jdatetime.date(y, mth, d)
-        except ValueError:
-            raise ValueError("تاریخ جلالی معتبر نیست.")
-    else:
-        # میلادی → تبدیل به جلالی
-        try:
-            g_date = datetime(year=y, month=mth, day=d).date()
-            j_date = jdatetime.date.fromgregorian(date=g_date)
-            return j_date
-        except ValueError:
-            raise ValueError("تاریخ میلادی معتبر نیست.")
+    def _safe_gregorian(year, month, day):
+        if not (1 <= month <= 12):
+            raise ValueError("ماه میلادی معتبر نیست.")
+        max_day = calendar.monthrange(year, month)[1]
+        day = min(day, max_day)
+        return datetime(year, month, day).date()
+
+    def _safe_jalali(year, month, day):
+        if not (1 <= month <= 12):
+            raise ValueError("ماه جلالی معتبر نیست.")
+        max_day = _JALALI_DAYS_IN_MONTH[month - 1]
+        if month == 12 and jdatetime.date.isleap(year):
+            max_day = 30
+        day = min(day, max_day)
+        return jdatetime.date(year, month, day)
+
+    # حالت‌های مختلف
+    if 1300 <= nums[0] <= 1500:  # YYYY-MM-DD جلالی
+        return _safe_jalali(nums[0], nums[1], nums[2])
+
+    if nums[0] > 1900:  # YYYY-MM-DD میلادی
+        g_date = _safe_gregorian(nums[0], nums[1], nums[2])
+        return jdatetime.date.fromgregorian(date=g_date)
+
+    if nums[2] > 1900:  # MM-DD-YYYY یا DD-MM-YYYY
+        year = nums[2]
+        if nums[0] > 12:
+            day, month = nums[0], nums[1]  # DD-MM-YYYY
+        else:
+            month, day = nums[0], nums[1]  # MM-DD-YYYY
+        g_date = _safe_gregorian(year, month, day)
+        return jdatetime.date.fromgregorian(date=g_date)
+
+    raise ValueError("فرمت تاریخ معتبر نیست.")
 
 
 def coerce_value_for_attribute(attribute, raw):
