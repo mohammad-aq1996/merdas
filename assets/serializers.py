@@ -757,6 +757,6 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
 class CsvIssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImportIssue
-        fields = "__all__"
+        fields = ("id", "created_at", "updated_at", "attribute", "level", "code", "message",)
 
 
