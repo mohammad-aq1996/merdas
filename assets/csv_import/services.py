@@ -82,6 +82,11 @@ class CsvImportService:
                 stats["units_created"] += 1
                 seen.add(key)
 
+                asset_attr_ids = set(
+                    str(pk) for pk in AssetTypeAttribute.objects.filter(asset=asset)
+                    .values_list("attribute_id", flat=True)
+                )
+
                 # ✅ پیدا کردن خصیصه‌های الزامی
                 required_attrs = Attribute.objects.filter(
                     id__in=AssetTypeAttribute.objects.filter(
@@ -132,12 +137,20 @@ class CsvImportService:
                     raw_val = row.get(col, None)
                     if raw_val is None or str(raw_val).strip() == "":
                         continue
+
+                    if attr_id not in asset_attr_ids:
+                        self._issue(idx, asset_ref, unit_label, asset=asset, unit=unit,
+                                    code="ATTR_NOT_ALLOWED",
+                                    msg=f"خصیصه با id={attr_id} برای این دارایی تعریف نشده است")
+                        stats["warnings"] += 1
+                        continue
+
                     try:
                         attribute = self.attr_cache.get(attr_id) or Attribute.objects.get(pk=attr_id)
                         self.attr_cache.setdefault(attr_id, attribute)
 
                         payload = coerce_value_for_attribute(attribute, raw_val)
-                        aav = AssetAttributeValue(
+                        AssetAttributeValue.objects.create(
                             asset=asset,
                             unit=unit,
                             attribute=attribute,
@@ -147,10 +160,8 @@ class CsvImportService:
                             value_bool=payload.get("value_bool"),
                             value_date=payload.get("value_date"),
                             choice=payload.get("choice"),
+                            owner=self.user if hasattr(AssetAttributeValue, "owner") else None,
                         )
-                        if hasattr(aav, "owner"):
-                            aav.owner = self.user
-                        aav.save()
                         stats["values_created"] += 1
                     except Attribute.DoesNotExist:
                         self._issue(idx, asset_ref, unit_label, asset=asset, unit=unit,
@@ -159,7 +170,7 @@ class CsvImportService:
                     except serializers.ValidationError as e:
                         self._issue(idx, asset_ref, unit_label, asset=asset, unit=unit,
                                     code="TYPE_INVALID",
-                                    msg=f"خصیصه '{getattr(attribute,'title','?')}': {getattr(e, 'detail', e)}")
+                                    msg=f"خصیصه '{getattr(attribute, 'title', '?')}': {getattr(e, 'detail', e)}")
                         stats["errors"] += 1
 
         s.state = ImportSession.State.COMMITTED
