@@ -421,7 +421,7 @@ class CsvImportIssuesAPIView(APIView):
         except AssetUnit.DoesNotExist:
             return CustomResponse.error('داده مورد نظر یافت نشد')
         issue = ImportIssue.objects.filter(unit=unit)
-        serializer = CsvIssueSerializer(issue)
+        serializer = CsvIssueSerializer(issue, many=True)
         return CustomResponse.success(get_single_data(), data=serializer.data)
 
 
