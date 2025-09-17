@@ -94,9 +94,20 @@ def coerce_value_for_attribute(attribute, raw):
         except Exception:
             raise serializers.ValidationError("تاریخ معتبر نیست.")
     if p == attribute.PropertyType.CHOICE:
+        # تمیز کردن ورودی
         parts = [x.strip() for x in re.split(r"[|,،]", s) if x.strip()]
         if not parts:
             raise serializers.ValidationError("مقدار انتخابی خالی است.")
+
+        valid_choices = set(attribute.choices or [])
+        invalid_parts = [p for p in parts if p not in valid_choices]
+
+        if invalid_parts:
+            # اینجا بهتره raise نکنیم، چون می‌خوای ثبت بشه تو Issue نه اینکه پروسه کلن fail بشه
+            raise serializers.ValidationError(
+                f"مقادیر نامعتبر: {', '.join(invalid_parts)} | مقادیر مجاز: {', '.join(valid_choices)}"
+            )
+
         return {"choice": parts}
     return {"value_str": s}
 
