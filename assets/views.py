@@ -417,7 +417,8 @@ class CsvImportIssuesAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            issue = ImportIssue.objects.get(pk=pk)
+            unit = AssetUnit.objects.get(pk=pk)
+            issue = ImportIssue.objects.filter(unit=unit)
         except ImportIssue.DoesNotExist:
             return CustomResponse.error('داده مورد نظر یافت نشد')
         serializer = CsvIssueSerializer(issue)
