@@ -47,21 +47,44 @@ def iter_csv_rows(django_file, delimiter=",", has_header=True) -> Iterator[Tuple
                 yield (idx, {headers[i]: row[i] for i in range(len(headers))})
 
 
-def parse_date_flex(s: str):
-    s = normalize_str(s)
+def parse_date_flex(raw: str):
+    """
+    تاریخ ورودی رو به jdatetime.date برمی‌گردونه (شمسی).
+    - ورودی می‌تونه با / یا - باشه
+    - می‌تونه جلالی یا میلادی باشه
+    - فرمت‌های مجاز:
+        1404/05/30 - 1404-5-30
+        2025/09/17 - 17/09/2025
+    """
+    s = normalize_str(raw)
     if not s:
         return None
-    # جلالی: 13xx یا 14xx
-    if re.match(r"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$", s) and (s.startswith("13") or s.startswith("14")):
-        fmt = "%Y/%m/%d" if "/" in s else "%Y-%m-%d"
-        return jdatetime.datetime.strptime(s, fmt).togregorian().date()
-    # میلادی
-    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
+
+    # تبدیل همه جداکننده‌ها به "-"
+    s = re.sub(r"[\/]", "-", s)
+
+    # تشخیص الگو
+    m = re.match(r"^(\d{2,4})-(\d{1,2})-(\d{1,2})$", s)
+    if not m:
+        raise ValueError("فرمت تاریخ معتبر نیست.")
+
+    y, mth, d = map(int, m.groups())
+
+    # جلالی یا میلادی؟
+    if y >= 1300 and y <= 1500:
+        # جلالی
         try:
-            return datetime.strptime(s, fmt).date()
+            return jdatetime.date(y, mth, d)
         except ValueError:
-            pass
-    raise ValueError("فرمت تاریخ معتبر نیست.")
+            raise ValueError("تاریخ جلالی معتبر نیست.")
+    else:
+        # میلادی → تبدیل به جلالی
+        try:
+            g_date = datetime(year=y, month=mth, day=d).date()
+            j_date = jdatetime.date.fromgregorian(date=g_date)
+            return j_date
+        except ValueError:
+            raise ValueError("تاریخ میلادی معتبر نیست.")
 
 
 def coerce_value_for_attribute(attribute, raw):
