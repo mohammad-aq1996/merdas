@@ -28,18 +28,31 @@ class Attribute(BaseModel):
         BOOL  = 'bool',  'Boolean'
         DATE  = 'date',  'Date'
         CHOICE= 'choice','Choice'
+        SINGLE_CHOICE = 'single_choice', 'Single Choice'
+        MULTI_CHOICE = 'multi_choice', 'Multi Choice'
 
     title = models.CharField(max_length=200)
     title_en = models.CharField(max_length=200)
-    property_type = models.CharField(max_length=10, choices=PropertyType.choices)
+    property_type = models.CharField(max_length=20, choices=PropertyType.choices)
     category = models.ForeignKey(AttributeCategory, null=True, blank=True,
                                  on_delete=models.SET_NULL, related_name="attributes")
 
+    # Todo delete choices
     choices = ArrayField(
         base_field=models.CharField(max_length=150),
         default=_empty_list,  # همیشه از callable استفاده کن
         blank=True,
         help_text="لیست برچسب‌ها"
+    )
+    single_choices = ArrayField(
+        base_field=models.CharField(max_length=150),
+        default=_empty_list,  # همیشه از callable استفاده کن
+        blank=True,
+    )
+    multi_choices = ArrayField(
+        base_field=models.CharField(max_length=150),
+        default=_empty_list,  # همیشه از callable استفاده کن
+        blank=True,
     )
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
