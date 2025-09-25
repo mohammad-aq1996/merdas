@@ -27,7 +27,16 @@ class AttributeSerializer(serializers.ModelSerializer):
         allow_empty=True,
         required=False
     )
-
+    single_choices = serializers.ListField(
+        child=serializers.CharField(max_length=150),
+        allow_empty=True,
+        required=False
+    )
+    multi_choices = serializers.ListField(
+        child=serializers.CharField(max_length=150),
+        allow_empty=True,
+        required=False
+    )
     class Meta:
         model = Attribute
         fields = ('id',
