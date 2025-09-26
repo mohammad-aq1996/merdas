@@ -625,7 +625,9 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"attributes": "ارسال attributes در ایجاد الزامی است."})
             missing = required_ids - set(effective.keys())
             if missing:
-                raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+                data['_registration'] = False
+            else:
+                data['_registration'] = True
         else:
             if attrs is not None:
                 missing = required_ids - set(effective.keys())
