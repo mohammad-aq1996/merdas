@@ -608,14 +608,12 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
             for aid, rows in by_attr.items():
                 a = rows[0].attribute
                 p = a.property_type
-                if len(rows) > 1 and p == Attribute.PropertyType.CHOICE:
-                    current[aid] = [r.choice for r in rows]
+
                 else:
                     if p == Attribute.PropertyType.INT:     current[aid] = rows[0].value_int
                     elif p == Attribute.PropertyType.FLOAT: current[aid] = rows[0].value_float
                     elif p == Attribute.PropertyType.BOOL:  current[aid] = rows[0].value_bool
                     elif p == Attribute.PropertyType.DATE:  current[aid] = rows[0].value_date
-                    elif p == Attribute.PropertyType.CHOICE:current[aid] = rows[0].choice
                     else:                                   current[aid] = rows[0].value_str
 
         effective = ({**current, **attrs} if attrs is not None else (current if mode=='update' else {}))
