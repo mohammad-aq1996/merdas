@@ -535,21 +535,6 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
         if isinstance(v, str): return v.strip().lower() in ("true","1","yes","y","on","بله")
         return bool(v)
 
-    def _normalize_value(self, v):
-        """
-        مقادیر ورودی را نرمال می‌کند:
-        - اگر استرینگ JSON array باشد → به list تبدیل می‌شود
-        - در غیر این صورت همان مقدار برگردانده می‌شود
-        """
-        if isinstance(v, str):
-            s = v.strip()
-            if (s.startswith("[") and s.endswith("]")):
-                try:
-                    return json.loads(s)
-                except Exception:
-                    return v
-        return v
-
     def _choices_validate(self, attribute, value):
         """
         اعتبارسنجی مقادیر انتخابی (single_choice / multi_choice)
@@ -673,7 +658,6 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._parse_jalali_date(val)
                     elif p in [Attribute.PropertyType.SINGLE_CHOICE,
                                Attribute.PropertyType.MULTI_CHOICE]:
-                        # val = self._normalize_value(val)
                         self._choices_validate(a, self._normalize_value(val))
                     else:  # STR/CHOICE
                         if val is None:
