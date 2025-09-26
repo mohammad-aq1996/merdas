@@ -7,6 +7,7 @@ from typing import Iterator, Tuple, Dict, Any
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import calendar
+import json
 
 
 PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
@@ -106,13 +107,12 @@ def parse_date_flex(raw: str):
 
 
 def coerce_value_for_attribute(attribute, raw):
-    """برگرداندن dict مناسب یکی از value_* بر اساس نوع خصیصه."""
     from rest_framework import serializers
     s = normalize_str(raw)
     if s is None:
         raise serializers.ValidationError("مقدار خالی است.")
 
-    p = attribute.property_type  # با enum مدل خودت هماهنگ است
+    p = attribute.property_type
     if p == attribute.PropertyType.INT:
         try:
             return {"value_int": int(s)}
@@ -134,22 +134,37 @@ def coerce_value_for_attribute(attribute, raw):
             return {"value_date": parse_date_flex(s)}
         except Exception:
             raise serializers.ValidationError("تاریخ معتبر نیست.")
-    if p == attribute.PropertyType.CHOICE:
-        # تمیز کردن ورودی
+    if p == attribute.PropertyType.SINGLE_CHOICE:
+        # فقط یک مقدار
+        valid_choices = set(attribute.options or [])
+        if s not in valid_choices:
+            raise serializers.ValidationError(
+                f"«{s}» معتبر نیست. گزینه‌های مجاز: {', '.join(valid_choices)}"
+            )
+        return {"choice": s}
+
+    if p == attribute.PropertyType.MULTI_CHOICE:
+        # چند مقدار جداشده با ویرگول یا |
         parts = [x.strip() for x in re.split(r"[|,،]", s) if x.strip()]
         if not parts:
             raise serializers.ValidationError("مقدار انتخابی خالی است.")
 
-        valid_choices = set(attribute.choices or [])
+        valid_choices = set(attribute.options or [])
         invalid_parts = [p for p in parts if p not in valid_choices]
 
         if invalid_parts:
-            # اینجا بهتره raise نکنیم، چون می‌خوای ثبت بشه تو Issue نه اینکه پروسه کلن fail بشه
             raise serializers.ValidationError(
                 f"مقادیر نامعتبر: {', '.join(invalid_parts)} | مقادیر مجاز: {', '.join(valid_choices)}"
             )
 
-        return {"choice": parts}
+        return {"choice": json.dumps(parts)}
+
+    if p == attribute.PropertyType.TAGS:
+        # آزاد، بدون ولیدیشن
+        parts = [x.strip() for x in re.split(r"[|,،]", s) if x.strip()]
+        return {"choice": json.dumps(parts)}
+
+    # پیش‌فرض (string معمولی)
     return {"value_str": s}
 
 
