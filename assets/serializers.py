@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from collections import defaultdict
 import jdatetime
-
+import json
 from rest_framework import serializers
 
 from django.db.models import Count, Q
@@ -22,21 +22,12 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
 
 class AttributeSerializer(serializers.ModelSerializer):
     category_value = serializers.CharField(source='category.title', read_only=True)
-    choices = serializers.ListField(
+    options = serializers.ListField(
         child=serializers.CharField(max_length=150),
         allow_empty=True,
         required=False
     )
-    single_choices = serializers.ListField(
-        child=serializers.CharField(max_length=150),
-        allow_empty=True,
-        required=False
-    )
-    multi_choices = serializers.ListField(
-        child=serializers.CharField(max_length=150),
-        allow_empty=True,
-        required=False
-    )
+
     class Meta:
         model = Attribute
         fields = ('id',
@@ -47,11 +38,9 @@ class AttributeSerializer(serializers.ModelSerializer):
                   'property_type',
                   'category',
                   'category_value',
-                  'choices',
-                  'single_choices',
-                  'multi_choices')
+                  'options',)
 
-    def validate_choices(self, value):
+    def validate_options(self, value):
         cleaned = [v.strip() for v in value if v.strip()]
 
         if len(cleaned) != len(set(cleaned)):
@@ -191,164 +180,164 @@ class AssetRelationSerializer(serializers.ModelSerializer):
 
 # ---------- Nested: Attribute Value (one-hot by property_type) ----------
 
-class AttributeValueInSerializer(serializers.Serializer):
-    attribute = serializers.PrimaryKeyRelatedField(queryset=Attribute.objects.all())
-    value = serializers.JSONField()  # هرچی فرانت بده: str/int/float/bool/...
-    status = serializers.ChoiceField(
-        choices=AssetAttributeValue.Status.choices,
-        required=False,
-        default=AssetAttributeValue.Status.REGISTERED
-    )
-
-    # کش choices برای جلوگیری از کوئری تکراری
-    _choices_cache: dict = {}
-
-    def _coerce_int(self, v):
-        if isinstance(v, bool):
-            # جلوگیری از قبول شدن True/False به عنوان int
-            raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
-        try:
-            if isinstance(v, (int,)):
-                return int(v)
-            if isinstance(v, float) and v.is_integer():
-                return int(v)
-            if isinstance(v, str):
-                return int(v.strip())
-        except (ValueError, TypeError):
-            pass
-        raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
-
-    def _coerce_float(self, v):
-        try:
-            if isinstance(v, (int, float)):
-                x = float(v)
-            elif isinstance(v, str):
-                s = v.strip().replace(",", ".")
-                x = float(s)
-            else:
-                raise ValueError
-            if x != x or x in (float("inf"), float("-inf")):
-                raise ValueError
-            return x
-        except (ValueError, TypeError):
-            raise serializers.ValidationError("مقدار عدد اعشاری معتبر نیست.")
-
-    def _coerce_bool(self, v):
-        if isinstance(v, bool):
-            return v
-        if isinstance(v, (int,)):
-            if v in (0, 1):
-                return bool(v)
-        if isinstance(v, str):
-            s = v.strip().lower()
-            if s in ("true", "yes", "on", "1"):
-                return True
-            if s in ("false", "no", "off", "0"):
-                return False
-        raise serializers.ValidationError("مقدار بولین معتبر نیست (true/false, 1/0, yes/no, on/off).")
-
-    def _coerce_date(self, v):
-        # ترجیح: ISO 8601
-        if isinstance(v, date) and not isinstance(v, datetime):
-            return v
-        if isinstance(v, datetime):
-            return v.date()
-        if isinstance(v, str):
-            s = v.strip()
-            # چند الگوی رایج
-            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
-                try:
-                    return datetime.strptime(s, fmt).date()
-                except ValueError:
-                    continue
-            # تلاش نهایی: fromisoformat
-            try:
-                return date.fromisoformat(s)
-            except ValueError:
-                pass
-        raise serializers.ValidationError("تاریخ معتبر نیست. فرمت پیشنهادی: YYYY-MM-DD")
-
-    def _resolve_choice(self, attribute: Attribute, v):
-        """
-        v می‌تواند:
-          - UUID pk (str)
-          - internal value (attribute_choice.value)
-          - label (attribute_choice.label)
-        اولویت: pk → value__iexact → label__iexact
-        """
-        attr_id = attribute.id
-        cache_key = f"{attr_id}"
-
-        # کش لیست choices این attribute
-        choices_qs = self._choices_cache.get(cache_key)
-        # if choices_qs is None:
-        #     choices_qs = list(AttributeChoice.objects.filter(attribute_id=attr_id))
-        #     self._choices_cache[cache_key] = choices_qs
-
-        # 1) pk
-        if isinstance(v, str):
-            for ch in choices_qs:
-                if str(ch.id) == v:
-                    return ch
-
-        # 2) value__iexact
-        if isinstance(v, str):
-            matches = [ch for ch in choices_qs if ch.value.lower() == v.lower()]
-            if len(matches) == 1:
-                return matches[0]
-            if len(matches) > 1:
-                # بسیار نادر چون روی (attribute, value) کانسترینت یکتا داریم
-                raise serializers.ValidationError("ابهام در انتخاب گزینه (value تکراری).")
-
-        # 3) label__iexact
-        if isinstance(v, str):
-            matches = [ch for ch in choices_qs if (ch.label or "").lower() == v.lower()]
-            if len(matches) == 1:
-                return matches[0]
-            if len(matches) > 1:
-                raise serializers.ValidationError("ابهام در انتخاب گزینه (label چندتایی).")
-
-        raise serializers.ValidationError("گزینه‌ی معتبر برای این خصیصه یافت نشد.")
-
-    def validate(self, attrs):
-        attr: Attribute = attrs["attribute"]
-        ptype = attr.property_type
-        v = attrs.get("value", None)
-
-        if ptype == Attribute.PropertyType.INT:
-            coerced = self._coerce_int(v)
-            attrs["value_int"] = coerced
-
-        elif ptype == Attribute.PropertyType.FLOAT:
-            coerced = self._coerce_float(v)
-            attrs["value_float"] = coerced
-
-        elif ptype == Attribute.PropertyType.STR:
-            # برای رشته، هر ورودی رو به str تبدیل کن؛ None مجاز نیست
-            if v is None:
-                raise serializers.ValidationError({"value": "برای نوع رشته مقدار لازم است."})
-            attrs["value_str"] = str(v)
-
-        elif ptype == Attribute.PropertyType.BOOL:
-            coerced = self._coerce_bool(v)
-            attrs["value_bool"] = coerced
-
-        elif ptype == Attribute.PropertyType.DATE:
-            coerced = self._coerce_date(v)
-            attrs["value_date"] = coerced
-
-        elif ptype == Attribute.PropertyType.CHOICE:
-            if v is None or (isinstance(v, str) and not v.strip()):
-                raise serializers.ValidationError({"value": "انتخاب گزینه الزامی است."})
-            choice_obj = self._resolve_choice(attr, v)
-            attrs["choice"] = choice_obj
-
-        else:
-            raise serializers.ValidationError({"attribute": "property_type نامعتبر است."})
-
-        # value ورودی فقط برای تصمیم‌گیری بود؛ حذفش می‌کنیم تا به DB نرسه
-        attrs.pop("value", None)
-        return attrs
+# class AttributeValueInSerializer(serializers.Serializer):
+#     attribute = serializers.PrimaryKeyRelatedField(queryset=Attribute.objects.all())
+#     value = serializers.JSONField()  # هرچی فرانت بده: str/int/float/bool/...
+#     status = serializers.ChoiceField(
+#         choices=AssetAttributeValue.Status.choices,
+#         required=False,
+#         default=AssetAttributeValue.Status.REGISTERED
+#     )
+#
+#     # کش choices برای جلوگیری از کوئری تکراری
+#     _choices_cache: dict = {}
+#
+#     def _coerce_int(self, v):
+#         if isinstance(v, bool):
+#             # جلوگیری از قبول شدن True/False به عنوان int
+#             raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
+#         try:
+#             if isinstance(v, (int,)):
+#                 return int(v)
+#             if isinstance(v, float) and v.is_integer():
+#                 return int(v)
+#             if isinstance(v, str):
+#                 return int(v.strip())
+#         except (ValueError, TypeError):
+#             pass
+#         raise serializers.ValidationError("مقدار عدد صحیح معتبر نیست.")
+#
+#     def _coerce_float(self, v):
+#         try:
+#             if isinstance(v, (int, float)):
+#                 x = float(v)
+#             elif isinstance(v, str):
+#                 s = v.strip().replace(",", ".")
+#                 x = float(s)
+#             else:
+#                 raise ValueError
+#             if x != x or x in (float("inf"), float("-inf")):
+#                 raise ValueError
+#             return x
+#         except (ValueError, TypeError):
+#             raise serializers.ValidationError("مقدار عدد اعشاری معتبر نیست.")
+#
+#     def _coerce_bool(self, v):
+#         if isinstance(v, bool):
+#             return v
+#         if isinstance(v, (int,)):
+#             if v in (0, 1):
+#                 return bool(v)
+#         if isinstance(v, str):
+#             s = v.strip().lower()
+#             if s in ("true", "yes", "on", "1"):
+#                 return True
+#             if s in ("false", "no", "off", "0"):
+#                 return False
+#         raise serializers.ValidationError("مقدار بولین معتبر نیست (true/false, 1/0, yes/no, on/off).")
+#
+#     def _coerce_date(self, v):
+#         # ترجیح: ISO 8601
+#         if isinstance(v, date) and not isinstance(v, datetime):
+#             return v
+#         if isinstance(v, datetime):
+#             return v.date()
+#         if isinstance(v, str):
+#             s = v.strip()
+#             # چند الگوی رایج
+#             for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
+#                 try:
+#                     return datetime.strptime(s, fmt).date()
+#                 except ValueError:
+#                     continue
+#             # تلاش نهایی: fromisoformat
+#             try:
+#                 return date.fromisoformat(s)
+#             except ValueError:
+#                 pass
+#         raise serializers.ValidationError("تاریخ معتبر نیست. فرمت پیشنهادی: YYYY-MM-DD")
+#
+#     def _resolve_choice(self, attribute: Attribute, v):
+#         """
+#         v می‌تواند:
+#           - UUID pk (str)
+#           - internal value (attribute_choice.value)
+#           - label (attribute_choice.label)
+#         اولویت: pk → value__iexact → label__iexact
+#         """
+#         attr_id = attribute.id
+#         cache_key = f"{attr_id}"
+#
+#         # کش لیست choices این attribute
+#         choices_qs = self._choices_cache.get(cache_key)
+#         # if choices_qs is None:
+#         #     choices_qs = list(AttributeChoice.objects.filter(attribute_id=attr_id))
+#         #     self._choices_cache[cache_key] = choices_qs
+#
+#         # 1) pk
+#         if isinstance(v, str):
+#             for ch in choices_qs:
+#                 if str(ch.id) == v:
+#                     return ch
+#
+#         # 2) value__iexact
+#         if isinstance(v, str):
+#             matches = [ch for ch in choices_qs if ch.value.lower() == v.lower()]
+#             if len(matches) == 1:
+#                 return matches[0]
+#             if len(matches) > 1:
+#                 # بسیار نادر چون روی (attribute, value) کانسترینت یکتا داریم
+#                 raise serializers.ValidationError("ابهام در انتخاب گزینه (value تکراری).")
+#
+#         # 3) label__iexact
+#         if isinstance(v, str):
+#             matches = [ch for ch in choices_qs if (ch.label or "").lower() == v.lower()]
+#             if len(matches) == 1:
+#                 return matches[0]
+#             if len(matches) > 1:
+#                 raise serializers.ValidationError("ابهام در انتخاب گزینه (label چندتایی).")
+#
+#         raise serializers.ValidationError("گزینه‌ی معتبر برای این خصیصه یافت نشد.")
+#
+#     def validate(self, attrs):
+#         attr: Attribute = attrs["attribute"]
+#         ptype = attr.property_type
+#         v = attrs.get("value", None)
+#
+#         if ptype == Attribute.PropertyType.INT:
+#             coerced = self._coerce_int(v)
+#             attrs["value_int"] = coerced
+#
+#         elif ptype == Attribute.PropertyType.FLOAT:
+#             coerced = self._coerce_float(v)
+#             attrs["value_float"] = coerced
+#
+#         elif ptype == Attribute.PropertyType.STR:
+#             # برای رشته، هر ورودی رو به str تبدیل کن؛ None مجاز نیست
+#             if v is None:
+#                 raise serializers.ValidationError({"value": "برای نوع رشته مقدار لازم است."})
+#             attrs["value_str"] = str(v)
+#
+#         elif ptype == Attribute.PropertyType.BOOL:
+#             coerced = self._coerce_bool(v)
+#             attrs["value_bool"] = coerced
+#
+#         elif ptype == Attribute.PropertyType.DATE:
+#             coerced = self._coerce_date(v)
+#             attrs["value_date"] = coerced
+#
+#         elif ptype == Attribute.PropertyType.CHOICE:
+#             if v is None or (isinstance(v, str) and not v.strip()):
+#                 raise serializers.ValidationError({"value": "انتخاب گزینه الزامی است."})
+#             choice_obj = self._resolve_choice(attr, v)
+#             attrs["choice"] = choice_obj
+#
+#         else:
+#             raise serializers.ValidationError({"attribute": "property_type نامعتبر است."})
+#
+#         # value ورودی فقط برای تصمیم‌گیری بود؛ حذفش می‌کنیم تا به DB نرسه
+#         attrs.pop("value", None)
+#         return attrs
 
 
 # ---------- Nested: Relation ----------
@@ -532,7 +521,7 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
 
     # CRUD روابط (create/update/delete)، مثل قبل
     relations  = serializers.ListField(child=serializers.DictField(), required=False)
-    relations_mode = serializers.ChoiceField(choices=['patch', 'replace'], required=False, default='patch')
+    relations_mode = serializers.ChoiceField(choices=['patch', 'replace'], required=False, default='replace')
 
     # ===== helpers
     def _mode(self):
@@ -545,6 +534,50 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
         if isinstance(v, bool): return v
         if isinstance(v, str): return v.strip().lower() in ("true","1","yes","y","on","بله")
         return bool(v)
+
+    def _choices_validate(self, attribute, value):
+        """
+        اعتبارسنجی مقادیر انتخابی (single_choice / multi_choice)
+        - attribute: نمونه‌ی Attribute
+        - value: مقدار ارسال‌شده (str یا list)
+        """
+        options = getattr(attribute, "options", None)  # یا هر فیلدی که گذاشتی
+        if not options:
+            raise serializers.ValidationError(
+                f"برای خصیصه «{attribute.title}» هیچ گزینه‌ای تعریف نشده است."
+            )
+
+        # حالت تک‌انتخابی
+        if attribute.property_type == Attribute.PropertyType.SINGLE_CHOICE:
+            if isinstance(value, list):
+                raise serializers.ValidationError(
+                    f"خصیصه «{attribute.title}» تک‌انتخابی است؛ لیست مجاز نیست."
+                )
+            if value not in options:
+                raise serializers.ValidationError(
+                    f"مقدار «{value}» معتبر نیست. گزینه‌های مجاز: {options}"
+                )
+            return value
+
+        # حالت چندانتخابی
+        elif attribute.property_type == Attribute.PropertyType.MULTI_CHOICE:
+            if isinstance(value, str):
+                # کاربر شاید تک مقدار فرستاده → تبدیل به لیست
+                value = [value]
+
+            if not isinstance(value, (list, tuple)):
+                raise serializers.ValidationError(
+                    f"خصیصه «{attribute.title}» چندانتخابی است؛ مقدار باید لیست باشد."
+                )
+
+            invalid = [v for v in value if v not in options]
+            if invalid:
+                raise serializers.ValidationError(
+                    f"مقادیر {invalid} معتبر نیستند. گزینه‌های مجاز: {options}"
+                )
+            return value
+
+        return value
 
     # ===== validate
     def validate(self, data):
@@ -623,6 +656,9 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._to_bool(val)
                     elif p == Attribute.PropertyType.DATE:
                         self._parse_jalali_date(val)
+                    elif p in [Attribute.PropertyType.SINGLE_CHOICE,
+                               Attribute.PropertyType.MULTI_CHOICE]:
+                        self._choices_validate(a, val)
                     else:  # STR/CHOICE
                         if val is None:
                             raise ValueError()
@@ -671,26 +707,38 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
             elif p == Attribute.PropertyType.FLOAT:  row["value_float"] = float(v)
             elif p == Attribute.PropertyType.BOOL:   row["value_bool"]  = self._to_bool(v)
             elif p == Attribute.PropertyType.DATE:   row["value_date"]  = self._parse_jalali_date(v)
-            elif p == Attribute.PropertyType.CHOICE: row["choice"]      = str(v)
-            else:                                    row["value_str"]   = str(v)
+            elif p == Attribute.PropertyType.MULTI_CHOICE:
+                row["value_str"] = json.dumps(v if isinstance(v, list) else [v])
+            elif p == Attribute.PropertyType.TAGS:
+                if isinstance(v, str):
+                    v = [s.strip() for s in v.split(",") if s.strip()]
+                row["value_str"] = json.dumps(v)
+            else:
+                row["value_str"] = str(v)
             rows.append(AssetAttributeValue(**row))
 
         for attr_id, val in attrs.items():
             rule = rules[attr_id]
             a, p = rule.attribute, rule.attribute.property_type
-            if rule.is_multi and p == Attribute.PropertyType.CHOICE:
-                for v in (val or []): add_row(a, p, v)
-            else:
-                add_row(a, p, val)
+            # if rule.is_multi and p == Attribute.PropertyType.CHOICE:
+            #     for v in (val or []):
+            #         add_row(a, p, v)
+            # else:
+            add_row(a, p, val)
+
         if rows:
             AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
 
         rel_objs = []
         for r in (rels or []):
+            relation_id = r.get("relation")
+            target_id = r.get("target_asset")
+            if not relation_id or not target_id:
+                continue  # داده ناقص → رد کن
             rel_objs.append(AssetRelation(
                 source_asset=unit,
-                relation_id=r.get("relation"),
-                target_asset_id=r.get("target_asset"),
+                relation_id=relation_id,
+                target_asset_id=target_id,
                 start_date=r.get("start_date"),
                 end_date=r.get("end_date")
             ))

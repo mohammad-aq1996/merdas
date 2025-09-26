@@ -27,7 +27,7 @@ class Attribute(BaseModel):
         STR   = 'str',   'String'
         BOOL  = 'bool',  'Boolean'
         DATE  = 'date',  'Date'
-        CHOICE= 'choice','Choice'
+        TAGS= 'tags', 'Tags'
         SINGLE_CHOICE = 'single_choice', 'Single Choice'
         MULTI_CHOICE = 'multi_choice', 'Multi Choice'
 
@@ -37,19 +37,7 @@ class Attribute(BaseModel):
     category = models.ForeignKey(AttributeCategory, null=True, blank=True,
                                  on_delete=models.SET_NULL, related_name="attributes")
 
-    # Todo delete choices
-    choices = ArrayField(
-        base_field=models.CharField(max_length=150),
-        default=_empty_list,  # همیشه از callable استفاده کن
-        blank=True,
-        help_text="لیست برچسب‌ها"
-    )
-    single_choices = ArrayField(
-        base_field=models.CharField(max_length=150),
-        default=_empty_list,  # همیشه از callable استفاده کن
-        blank=True,
-    )
-    multi_choices = ArrayField(
+    options = ArrayField(
         base_field=models.CharField(max_length=150),
         default=_empty_list,  # همیشه از callable استفاده کن
         blank=True,
