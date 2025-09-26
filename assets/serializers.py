@@ -655,7 +655,7 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._parse_jalali_date(val)
                     elif p in [Attribute.PropertyType.SINGLE_CHOICE,
                                Attribute.PropertyType.MULTI_CHOICE]:
-                        self._choices_validate(a, self._normalize_value(val))
+                        self._choices_validate(a, val)
                     else:  # STR/CHOICE
                         if val is None:
                             raise ValueError()
