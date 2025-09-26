@@ -673,7 +673,7 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._parse_jalali_date(val)
                     elif p in [Attribute.PropertyType.SINGLE_CHOICE,
                                Attribute.PropertyType.MULTI_CHOICE]:
-                        val = self._normalize_value(val)
+                        # val = self._normalize_value(val)
                         self._choices_validate(a, self._normalize_value(val))
                     else:  # STR/CHOICE
                         if val is None:
@@ -723,12 +723,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
             elif p == Attribute.PropertyType.FLOAT:  row["value_float"] = float(v)
             elif p == Attribute.PropertyType.BOOL:   row["value_bool"]  = self._to_bool(v)
             elif p == Attribute.PropertyType.DATE:   row["value_date"]  = self._parse_jalali_date(v)
-            elif p == Attribute.PropertyType.MULTI_CHOICE:
-                row["value_str"] = json.dumps(v if isinstance(v, list) else [v])
-            elif p == Attribute.PropertyType.TAGS:
-                if isinstance(v, str):
-                    v = [s.strip() for s in v.split(",") if s.strip()]
-                row["value_str"] = json.dumps(v)
+            elif p == Attribute.PropertyType.TAGS:   row['choice']      = str(val)
+            elif p == Attribute.PropertyType.MULTI_CHOICE: row['choice']      = str(val)
             else:
                 row["value_str"] = str(v)
             rows.append(AssetAttributeValue(**row))
