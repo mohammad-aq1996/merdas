@@ -659,8 +659,6 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                 a = r.attribute
                 p = a.property_type
 
-                val = self._normalize_value(val)
-
                 if not r.is_multi and isinstance(val, (list, tuple)):
                     raise serializers.ValidationError({attr_id: "این خصیصه تک‌مقداری است؛ لیست ندهید"})
 
@@ -675,7 +673,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._parse_jalali_date(val)
                     elif p in [Attribute.PropertyType.SINGLE_CHOICE,
                                Attribute.PropertyType.MULTI_CHOICE]:
-                        self._choices_validate(a, val)
+                        val = self._normalize_value(val)
+                        self._choices_validate(a, self._normalize_value(val))
                     else:  # STR/CHOICE
                         if val is None:
                             raise ValueError()
