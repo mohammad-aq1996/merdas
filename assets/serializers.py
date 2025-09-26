@@ -653,9 +653,8 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                         self._to_bool(val)
                     elif p == Attribute.PropertyType.DATE:
                         self._parse_jalali_date(val)
-                    elif p in [Attribute.PropertyType.SINGLE_CHOICE,
-                               Attribute.PropertyType.MULTI_CHOICE]:
-                        self._choices_validate(a, val)
+                    elif p == Attribute.PropertyType.MULTI_CHOICE:
+                        self._choices_validate(a, json.loads(val))
                     else:  # STR/CHOICE
                         if val is None:
                             raise ValueError()
