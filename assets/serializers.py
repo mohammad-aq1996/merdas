@@ -609,12 +609,11 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                 a = rows[0].attribute
                 p = a.property_type
 
-                else:
-                    if p == Attribute.PropertyType.INT:     current[aid] = rows[0].value_int
-                    elif p == Attribute.PropertyType.FLOAT: current[aid] = rows[0].value_float
-                    elif p == Attribute.PropertyType.BOOL:  current[aid] = rows[0].value_bool
-                    elif p == Attribute.PropertyType.DATE:  current[aid] = rows[0].value_date
-                    else:                                   current[aid] = rows[0].value_str
+                if p == Attribute.PropertyType.INT:     current[aid] = rows[0].value_int
+                elif p == Attribute.PropertyType.FLOAT: current[aid] = rows[0].value_float
+                elif p == Attribute.PropertyType.BOOL:  current[aid] = rows[0].value_bool
+                elif p == Attribute.PropertyType.DATE:  current[aid] = rows[0].value_date
+                else:                                   current[aid] = rows[0].value_str
 
         effective = ({**current, **attrs} if attrs is not None else (current if mode=='update' else {}))
 
