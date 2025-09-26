@@ -747,8 +747,10 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
     def update(self, unit: AssetUnit, vd):
         unit = AssetUnit.objects.select_for_update().get(pk=unit.pk)
 
-        if "label" in vd: unit.label = vd.get("label") or None
-        if "code"  in vd: unit.code  = vd.get("code") or None
+        if "label" in vd:
+            unit.label = vd.get("label") or None
+        if "code" in vd:
+            unit.code = vd.get("code") or None
         unit.is_registered = True
         unit.save(update_fields=["label", "code", "is_registered"])
 
@@ -760,23 +762,31 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
             for attr_id, val in attrs.items():
                 rule = rules[attr_id]
                 a, p = rule.attribute, rule.attribute.property_type
+
+                # همه مقدارهای قبلی رو پاک کن
                 AssetAttributeValue.objects.filter(unit=unit, attribute_id=a.id).delete()
 
                 rows = []
+
                 def add(v):
                     row = {"asset": unit.asset, "unit": unit, "attribute": a}
-                    if p == Attribute.PropertyType.INT:      row["value_int"]   = int(v)
-                    elif p == Attribute.PropertyType.FLOAT:  row["value_float"] = float(v)
-                    elif p == Attribute.PropertyType.BOOL:   row["value_bool"]  = self._to_bool(v)
-                    elif p == Attribute.PropertyType.DATE:   row["value_date"]  = self._parse_jalali_date(v)
-                    elif p == Attribute.PropertyType.CHOICE: row["choice"]      = str(v)
-                    else:                                    row["value_str"]   = str(v)
+                    if p == Attribute.PropertyType.INT:
+                        row["value_int"] = int(v)
+                    elif p == Attribute.PropertyType.FLOAT:
+                        row["value_float"] = float(v)
+                    elif p == Attribute.PropertyType.BOOL:
+                        row["value_bool"] = self._to_bool(v)
+                    elif p == Attribute.PropertyType.DATE:
+                        row["value_date"] = self._parse_jalali_date(v)
+                    elif p == Attribute.PropertyType.TAGS:
+                        row["choice"] = str(v)  # میشه JSON string از لیست
+                    elif p == Attribute.PropertyType.MULTI_CHOICE:
+                        row["choice"] = str(v)  # میشه JSON string از لیست
+                    else:  # STR یا SINGLE_CHOICE
+                        row["value_str"] = str(v)
                     rows.append(AssetAttributeValue(**row))
 
-                if rule.is_multi and p == Attribute.PropertyType.CHOICE:
-                    for v in (val or []): add(v)
-                else:
-                    add(val)
+                add(val)
                 if rows:
                     AssetAttributeValue.objects.bulk_create(rows, batch_size=500)
 
@@ -795,10 +805,14 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
                     continue
 
                 fields = {}
-                if "relation" in r:     fields["relation_id"] = r["relation"]
-                if "target_asset" in r: fields["target_asset_id"] = r["target_asset"]
-                if "start_date" in r:   fields["start_date"] = r.get("start_date")
-                if "end_date" in r:     fields["end_date"]   = r.get("end_date")
+                if "relation" in r:
+                    fields["relation_id"] = r["relation"]
+                if "target_asset" in r:
+                    fields["target_asset_id"] = r["target_asset"]
+                if "start_date" in r:
+                    fields["start_date"] = r.get("start_date")
+                if "end_date" in r:
+                    fields["end_date"] = r.get("end_date")
 
                 if rel_id:
                     if fields:
