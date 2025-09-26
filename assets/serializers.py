@@ -1,5 +1,7 @@
 from datetime import datetime, date
 from collections import defaultdict
+from multiprocessing.resource_tracker import register
+
 import jdatetime
 import json
 from rest_framework import serializers
@@ -628,7 +630,9 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
             if attrs is not None:
                 missing = required_ids - set(effective.keys())
                 if missing:
-                    raise serializers.ValidationError({"attributes": f"خصیصه‌های اجباری تامین نشد: {sorted(missing)}"})
+                    data['_registration'] = False
+                else:
+                    data['_registration'] = True
 
         # اعتبارسنجی فقط روی attrهای ارسال‌شده
         if attrs is not None:
@@ -690,10 +694,10 @@ class AssetUnitUpsertSerializer(serializers.Serializer):
         attrs = vd.get('attributes') or {}
         rules = vd["_rules"]
         rels  = vd.get('relations') or []
-
+        registration = vd.get('registration')
         unit = AssetUnit.objects.create(
             asset=asset, label=label, code=code,
-            is_active=True, is_registered=True
+            is_active=True, is_registered=registration
         )
 
         rows = []
