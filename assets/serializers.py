@@ -18,8 +18,8 @@ class AttributeCategorySerializer(serializers.ModelSerializer):
         fields = ('id',
                   'created_at',
                   'updated_at',
-                  'title_en',
-                  'title')
+                  'name',
+                  'description')
 
 
 class AttributeSerializer(serializers.ModelSerializer):

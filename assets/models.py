@@ -9,13 +9,13 @@ from core.models import BaseModel
 # ---------- Attribute Dictionary ----------
 
 class AttributeCategory(BaseModel):
-    title_en = models.CharField(max_length=100, unique=True)
-    title = models.CharField(max_length=200)
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
-        return self.title
+        return self.name
 
 def _empty_list():
     return []
