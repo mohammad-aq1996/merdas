@@ -33,5 +33,7 @@ urlpatterns = [
     path('csv/upload/preview/', CsvUploadView.as_view(), name='csv_upload'),
     path('csv/mapping/', CsvMappingView.as_view(), name='csv_mapping'),
     path('csv/commit/', CsvCommitView.as_view(), name='csv_commit'),
-    path('csv/issues/<uuid:pk>/', CsvImportIssuesAPIView.as_view())
+    path('csv/issues/<uuid:pk>/', CsvImportIssuesAPIView.as_view()),
+
+    path('generate-csv/', GenerateTemplateCSVAPIView.as_view()),
 ]

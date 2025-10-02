@@ -1,9 +1,14 @@
+import csv
+from io import StringIO
+from django.http import HttpResponse
+
 from django.forms.models import model_to_dict
 from django.db.models import Count, F, Q, Value, JSONField
 from django.db.models.functions import JSONObject, Coalesce
 from django.contrib.postgres.aggregates import JSONBAgg
 
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import AllowAny
 
 from rest_framework.views import APIView
 from rest_framework import status
@@ -425,4 +430,36 @@ class CsvImportIssuesAPIView(APIView):
         return CustomResponse.success(get_single_data(), data=serializer.data)
 
 
+class GenerateTemplateCSVAPIView(APIView):
+    permission_classes = (AllowAny, )
+    queryset = Asset.objects.all()
 
+    @extend_schema(request=GenerateCsvSerializer)
+    def post(self, request, *args, **kwargs):
+        asset_ids = request.data.get("assets", [])
+        if not asset_ids:
+            return CustomResponse.error("asset_ids الزامی است.")
+
+        headers = ["unit_label"]
+
+        assets = Asset.objects.filter(id__in=asset_ids)
+        for asset in assets:
+            rules = AssetTypeAttribute.objects.filter(asset=asset).select_related("attribute")
+            for rule in rules:
+                safe_asset = asset.title.strip().replace(" ", "_").replace("-", "_")
+                safe_attr  = rule.attribute.title.strip().replace(" ", "_").replace("-", "_")
+
+                col_name = f"{safe_asset}ـ{safe_attr}"
+                if rule.is_required:   # اگر الزامی بود
+                    col_name += "*"
+
+                headers.append(col_name)
+
+        # ساخت CSV
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(headers)
+
+        response = HttpResponse(buffer.getvalue(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="template.csv"'
+        return response

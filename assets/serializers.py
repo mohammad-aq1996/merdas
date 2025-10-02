@@ -831,3 +831,5 @@ class CsvIssueSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class GenerateCsvSerializer(serializers.Serializer):
+    assets = serializers.ListField(child=serializers.UUIDField())
