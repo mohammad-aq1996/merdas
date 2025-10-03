@@ -432,7 +432,6 @@ class CsvImportIssuesAPIView(APIView):
 
 
 class GenerateTemplateCSVAPIView(APIView):
-    permission_classes = (AllowAny, )
     queryset = Asset.objects.all()
 
     @extend_schema(request=GenerateCsvSerializer)
@@ -482,12 +481,14 @@ def parse_header(header: str):
 
 
 class CommitImportAPIView(APIView):
-    permission_classes = (AllowAny, )
-
     @transaction.atomic
     @extend_schema(request=[])
-    def post(self, request, session_id):
+    def post(self, request):
+        ser = CsvCommitSerializer(data=request.data)
+        if not ser.is_valid():
+            return CustomResponse.error("ناموفق", ser.errors, status=status.HTTP_400_BAD_REQUEST)
         try:
+            session_id = ser.validated_data["session_id"]
             session = ImportSession.objects.get(id=session_id)
         except ImportSession.DoesNotExist:
             return CustomResponse.error("فایل مورد نظر یافت نشد")

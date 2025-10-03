@@ -833,3 +833,7 @@ class CsvIssueSerializer(serializers.ModelSerializer):
 
 class GenerateCsvSerializer(serializers.Serializer):
     assets = serializers.ListField(child=serializers.UUIDField())
+
+
+class CsvCommitSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
