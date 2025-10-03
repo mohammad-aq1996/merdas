@@ -17,6 +17,7 @@ from core.utils import CustomResponse
 from core.persian_response import *
 from .serializers import *
 from .models import *
+from .csv_import.utils import coerce_value_for_attribute
 
 
 class AttributeCategoryListCreateView(APIView):
@@ -463,3 +464,148 @@ class GenerateTemplateCSVAPIView(APIView):
         response = HttpResponse(buffer.getvalue(), content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="template.csv"'
         return response
+
+
+def parse_header(header: str):
+    """
+    تبدیل هدر به asset_title, attr_title, required
+    مثلا: "پرینتر3dـسریال*" → ("پرینتر3d", "سریال", True)
+    """
+    required = header.endswith("*")
+    if required:
+        header = header[:-1]
+    try:
+        asset_title, attr_title = header.split("ـ", 1)
+    except ValueError:
+        return None, None, required
+    return asset_title.strip(), attr_title.strip(), required
+
+
+class CommitImportAPIView(APIView):
+    permission_classes = (AllowAny, )
+
+    @transaction.atomic
+    @extend_schema(request=[])
+    def post(self, request, session_id):
+        try:
+            session = ImportSession.objects.get(id=session_id)
+        except ImportSession.DoesNotExist:
+            return CustomResponse.error("فایل مورد نظر یافت نشد")
+
+        file_path = session.file.path
+        created_values = 0
+        issues = []
+
+        def detect_asset_from_row(row):
+            """
+            دارایی مربوط به یک سطر رو با توجه به بیشترین مقدار پر شده تشخیص بده
+            """
+            counts = {}
+            for col_name, value in row.items():
+                if col_name == "unit_label" or not value:
+                    continue
+                asset_title, attr_title, required = parse_header(col_name)
+                if not asset_title:
+                    continue
+                counts[asset_title] = counts.get(asset_title, 0) + 1
+
+            if not counts:
+                return None  # هیچ دارایی مشخص نشد
+
+            # انتخاب دارایی با بیشترین مقدار پر
+            selected_asset_title = max(counts.items(), key=lambda kv: kv[1])[0]
+
+            try:
+                return Asset.objects.get(title=selected_asset_title)
+            except Asset.DoesNotExist:
+                return None
+
+        with open(file_path, newline="", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=session.delimiter)
+
+            for row_index, row in enumerate(reader, start=1):
+                unit_label = row.get("unit_label")
+                if not unit_label:
+                    continue
+
+                # تشخیص دارایی
+                asset = detect_asset_from_row(row)
+                if not asset:
+                    issues.append(f"ردیف {row_index}: دارایی قابل تشخیص نیست")
+                    continue
+
+                # ساختن یونیت
+                unit = AssetUnit.objects.create(
+                    asset=asset,
+                    label=unit_label,
+                    is_registered=False,
+                )
+
+                # پردازش attribute ها
+                for col_name, value in row.items():
+                    if col_name == "unit_label":
+                        continue
+
+                    asset_title, attr_title, required = parse_header(col_name)
+                    if not asset_title or not attr_title:
+                        continue
+
+                    try:
+                        attribute = Attribute.objects.get(title=attr_title)
+                    except Attribute.DoesNotExist:
+                        issues.append(f"ردیف {row_index}: خصیصه {attr_title} وجود ندارد")
+                        continue
+
+                    # اگر اجباریه ولی خالیه → issue
+                    if required and not value:
+                        issues.append(f"ردیف {row_index}: خصیصه {attr_title} اجباری است")
+                        continue
+                    elif value:
+                        unit.is_registered = True
+                        unit.save()
+
+                    if not value:
+                        continue  # اختیاری و خالی → رد
+
+                    ok, casted, err = coerce_value_for_attribute(attribute, value)
+                    if not ok:
+                        issues.append(f"ردیف {row_index}: مقدار {value} معتبر نیست ({err})")
+                        continue
+
+                    AssetAttributeValue.objects.create(
+                        asset=asset,
+                        unit=unit,
+                        attribute=attribute,
+                        **casted,
+                    )
+                    created_values += 1
+
+        session.state = ImportSession.State.COMMITTED
+        session.save()
+
+        return CustomResponse.success({
+            "committed_values": created_values,
+            "issues": len(issues),
+            "state": session.state
+        })
+
+    # def cast_value(self, attribute, raw_value):
+    #     """
+    #     مقدار را براساس نوع Attribute تبدیل می‌کند
+    #     """
+    #     try:
+    #         if attribute.property_type == Attribute.PropertyType.INT:
+    #             return True, {"value_int": int(raw_value)}, None
+    #         elif attribute.property_type == Attribute.PropertyType.FLOAT:
+    #             return True, {"value_float": float(raw_value)}, None
+    #         elif attribute.property_type == Attribute.PropertyType.BOOL:
+    #             return True, {"value_bool": raw_value.strip().lower() in ["true", "1", "yes", "بله"]}, None
+    #         elif attribute.property_type == Attribute.PropertyType.DATE:
+    #             # TODO: تبدیل به jDateField (مثلا با jdatetime)
+    #             return True, {"value_date": raw_value}, None
+    #         elif attribute.property_type in [Attribute.PropertyType.SINGLE_CHOICE, Attribute.PropertyType.MULTI_CHOICE]:
+    #             return True, {"choice": raw_value}, None
+    #         else:  # STRING, TAGS, ...
+    #             return True, {"value_str": raw_value}, None
+    #     except Exception as e:
+    #         return False, None, str(e)

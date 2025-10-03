@@ -115,23 +115,23 @@ def coerce_value_for_attribute(attribute, raw):
     p = attribute.property_type
     if p == attribute.PropertyType.INT:
         try:
-            return {"value_int": int(s)}
+            return True, {"value_int": int(s)}, None
         except Exception:
             raise serializers.ValidationError("عدد صحیح معتبر نیست.")
     if p == attribute.PropertyType.FLOAT:
         try:
-            return {"value_float": float(s.replace(",", "."))}
+            return True, {"value_float": float(s.replace(",", "."))}, None
         except Exception:
             raise serializers.ValidationError("عدد اعشاری معتبر نیست.")
     if p == attribute.PropertyType.BOOL:
         t, f = {"true","1","yes","on","y","t","بلی","بله"}, {"false","0","no","off","n","f","خیر"}
         ls = s.lower()
-        if ls in t: return {"value_bool": True}
-        if ls in f: return {"value_bool": False}
+        if ls in t: return True, {"value_bool": True}, None
+        if ls in f: return True, {"value_bool": False}, None
         raise serializers.ValidationError("بولین معتبر نیست.")
     if p == attribute.PropertyType.DATE:
         try:
-            return {"value_date": parse_date_flex(s)}
+            return True, {"value_date": parse_date_flex(s)}, None
         except Exception:
             raise serializers.ValidationError("تاریخ معتبر نیست.")
     if p == attribute.PropertyType.SINGLE_CHOICE:
@@ -141,7 +141,7 @@ def coerce_value_for_attribute(attribute, raw):
             raise serializers.ValidationError(
                 f"«{s}» معتبر نیست. گزینه‌های مجاز: {', '.join(valid_choices)}"
             )
-        return {"choice": s}
+        return True, {"choice": s}, None
 
     if p == attribute.PropertyType.MULTI_CHOICE:
         # چند مقدار جداشده با ویرگول یا |
@@ -157,15 +157,15 @@ def coerce_value_for_attribute(attribute, raw):
                 f"مقادیر نامعتبر: {', '.join(invalid_parts)} | مقادیر مجاز: {', '.join(valid_choices)}"
             )
 
-        return {"choice": json.dumps(parts)}
+        return True, {"choice": json.dumps(parts)}, None
 
     if p == attribute.PropertyType.TAGS:
         # آزاد، بدون ولیدیشن
         parts = [x.strip() for x in re.split(r"[|,،]", s) if x.strip()]
-        return {"choice": json.dumps(parts)}
+        return True, {"choice": json.dumps(parts)}, None
 
     # پیش‌فرض (string معمولی)
-    return {"value_str": s}
+    return True, {"value_str": s}, None
 
 
 def read_csv_all(django_file, delimiter=",", has_header=True):
