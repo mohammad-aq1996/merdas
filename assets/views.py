@@ -540,6 +540,9 @@ class CommitImportAPIView(APIView):
                     label=unit_label,
                     is_registered=False,
                 )
+                created_values += 1
+
+                available_attrs = asset.type_rules.all().values_list('attribute__title', flat=True)
 
                 # پردازش attribute ها
                 for col_name, value in row.items():
@@ -548,6 +551,9 @@ class CommitImportAPIView(APIView):
 
                     asset_title, attr_title, required = parse_header(col_name)
                     if not asset_title or not attr_title:
+                        continue
+
+                    if attr_title not in available_attrs:
                         continue
 
                     try:
@@ -578,7 +584,6 @@ class CommitImportAPIView(APIView):
                         attribute=attribute,
                         **casted,
                     )
-                    created_values += 1
 
         session.state = ImportSession.State.COMMITTED
         session.save()
