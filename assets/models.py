@@ -196,7 +196,7 @@ class ImportSession(BaseModel):
     # مپینگ
     asset_column = models.CharField(max_length=255, null=True, blank=True)       # الزامی در مرحله Mapping
     unit_label_column = models.CharField(max_length=255, null=True, blank=True)  # الزامی در مرحله Mapping
-    attribute_map = models.JSONField(default=dict)  # {"col_name": "attribute_uuid", ...} (اختیاری)
+    attribute_map = models.JSONField(default=dict, blank=True, null=True)  # {"col_name": "attribute_uuid", ...} (اختیاری)
 
     state = models.CharField(max_length=16, choices=State.choices, default=State.UPLOADED)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)

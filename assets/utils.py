@@ -137,7 +137,59 @@ def validate_rules_for_asset(asset: Asset, incoming_items: list, replace_all: bo
             raise serializers.ValidationError(f"حداکثر {rule.max_count} مقدار برای {rule.attribute.title} مجاز است.")
 
 
+def parse_header(header: str):
+    """
+    تبدیل هدر به asset_title, attr_title, required
+    مثلا: "پرینتر3dـسریال*" → ("پرینتر3d", "سریال", True)
+    """
+    required = header.endswith("*")
+    if required:
+        header = header[:-1]
+    try:
+        asset_title, attr_title = header.split("ـ", 1)
+    except ValueError:
+        return None, None, required
+    return asset_title.strip(), attr_title.strip(), required
 
+
+# --- متد کمکی: تشخیص دارایی بر اساس بیشترین مقدار پر ---
+def detect_asset_from_row(row):
+    counts = {}
+    for col_name, value in row.items():
+        if col_name == "unit_label" or not value:
+            continue
+        asset_title, attr_title, required = parse_header(col_name)
+        if asset_title:
+            counts[asset_title] = counts.get(asset_title, 0) + 1
+
+    if not counts:
+        return None
+
+    selected_asset_title = max(counts.items(), key=lambda kv: kv[1])[0]
+    try:
+        return Asset.objects.get(title=selected_asset_title)
+    except Asset.DoesNotExist:
+        return None
+
+# --- متد کمکی: گرفتن Attribute از روی mapping یا parse_header ---
+def get_attribute_from_column(col_name, mapping):
+    attr_id = mapping.get(col_name) if mapping else None
+    if attr_id:
+        try:
+            return Attribute.objects.get(id=attr_id)
+        except Attribute.DoesNotExist:
+            return None
+    if mapping:
+        return None
+
+    # fallback → parse_header
+    asset_title, attr_title, required = parse_header(col_name)
+    if not attr_title:
+        return None
+    try:
+        return Attribute.objects.get(title=attr_title)
+    except Attribute.DoesNotExist:
+        return None
 
 
 
