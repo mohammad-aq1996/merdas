@@ -470,7 +470,7 @@ class AssetUnitDetailSerializer(serializers.Serializer):
         for aav in values_qs:
             category = aav.attribute.category
             if category:
-                cat_label = getattr(category, cat_label_field, None) or category.title
+                cat_label = getattr(category, cat_label_field, None) or category.name
             else:
                 cat_label = "uncategorized"
 
