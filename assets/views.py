@@ -228,7 +228,7 @@ class AssetAttributeValueView(APIView):
             AssetAttributeValue.objects
             .filter(unit=unit)
             .select_related("attribute", "attribute__category")
-            .order_by("attribute__category__title", "attribute__title")
+            .order_by("attribute__category__name", "attribute__title")
         )
 
         relations_qs = (
@@ -331,7 +331,7 @@ class AssetUnitUpdateAPIView(APIView):
             AssetAttributeValue.objects
             .filter(unit=unit)
             .select_related("attribute", "attribute__category")
-            .order_by("attribute__category__title", "attribute__title")
+            .order_by("attribute__category__name", "attribute__title")
         )
 
         relations_qs = (
