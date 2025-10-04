@@ -209,7 +209,7 @@ class AssetAttributesListView(APIView):
                          'is_required': type_rule.is_required,
                          'is_multi': type_rule.is_multi,
                          'id': type_rule.attribute.id}
-            cat_label = category.title if category else "uncategorized"
+            cat_label = category.name if category else "uncategorized"
             result.setdefault(cat_label, []).append(attr_data)
 
         return CustomResponse.success(message=get_all_data(), data=result)
@@ -432,6 +432,7 @@ class CsvImportIssuesAPIView(APIView):
 
 
 class GenerateTemplateCSVAPIView(APIView):
+    permission_classes = (AllowAny, )
     queryset = Asset.objects.all()
 
     @extend_schema(request=GenerateCsvSerializer)
@@ -481,6 +482,7 @@ def parse_header(header: str):
 
 
 class CommitImportAPIView(APIView):
+    permission_classes = (AllowAny,)
     @transaction.atomic
     @extend_schema(request=[])
     def post(self, request):
